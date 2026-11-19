@@ -130,6 +130,9 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
 #tab-prices .price-table td:nth-child(3){font-weight:750}
 @media(max-width:560px){#tab-prices #priceForm{grid-template-columns:minmax(0,1fr)}#tab-prices #priceForm .field.full{grid-column:auto}}
 .preview-voucher small{display:block;color:#7b879d;font-size:10px;font-weight:600;margin-top:2px}
+
+.share-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:520px){.share-actions button{flex:1 1 100%}}
 </style>
 </head>
 <body>
@@ -159,7 +162,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
  <div class="tabs"><button class="active" data-tab="dashboard">Dashboard</button><button data-tab="transactions">Transaksi</button><button data-tab="payments">Pembayaran</button><button data-tab="prices">Daftar harga</button><button data-tab="reports">Laporan & backup</button></div>
  <section id="tab-dashboard">
   <div class="grid">
-   <div class="card"><div class="head"><h2>Aktivitas terbaru</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan preview semua utang</button><button class="small secondary" data-goto="transactions">Lihat semua</button></div></div><div id="recentList"></div></div>
+   <div class="card"><div class="head"><h2>Aktivitas terbaru</h2><div class="actions"><button class="small secondary" data-copyall="1">Salin link preview</button><button class="small secondary" data-copytext="1">Kirim teks utang ke WhatsApp</button><button class="small secondary" data-goto="transactions">Lihat semua</button></div></div><div id="recentList"></div></div>
    <div class="card"><div class="head"><h2>Ringkasan pembayaran</h2></div><div class="muted">Persentase utang yang sudah dibayar</div><h2 id="paidPercent" style="font-size:30px;margin:9px 0 0">0%</h2><div class="progress"><span id="paidBar" style="width:0%"></span></div><p class="hint" id="paidCaption">Belum ada transaksi.</p><div class="quick"><button data-goto="transactions"><b>＋ Transaksi baru</b><span>Catat voucher</span></button><button data-goto="payments"><b>↗ Pembayaran</b><span>Input cicilan</span></button><button data-goto="prices"><b>▤ Atur harga</b><span>Kelola nominal</span></button></div></div>
   </div>
  </section>
@@ -178,7 +181,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
     <div class="field full"><button type="submit">Simpan transaksi</button></div>
    </form>
   </div>
-  <div class="card" style="margin-top:14px"><div class="head"><h2>Semua transaksi</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan preview semua utang</button></div><div class="toolbar"><input id="debtSearch" placeholder="Cari ID / merek / nominal"><select id="statusFilter" style="max-width:150px"><option value="all">Semua status</option><option value="open">Belum lunas</option><option value="paid">Lunas</option></select></div></div><div id="debtList" class="tablewrap"></div></div>
+  <div class="card" style="margin-top:14px"><div class="head"><h2>Semua transaksi</h2><div class="actions"><button class="small secondary" data-copyall="1">Salin link preview</button><button class="small secondary" data-copytext="1">Kirim teks utang ke WhatsApp</button></div><div class="toolbar"><input id="debtSearch" placeholder="Cari ID / merek / nominal"><select id="statusFilter" style="max-width:150px"><option value="all">Semua status</option><option value="open">Belum lunas</option><option value="paid">Lunas</option></select></div></div><div id="debtList" class="tablewrap"></div></div>
  </section>
  <section id="tab-payments" class="hidden">
   <div class="card"><div class="head"><h2>Catat pembayaran</h2></div><form id="paymentForm" class="grid">
@@ -327,10 +330,27 @@ $('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId')
 function clearPrice(){$('editProductId').value='';$('priceCode').value='';$('priceValue').value='';$('priceForm').classList.remove('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan harga'}
 $('cancelEdit').onclick=clearPrice;
 document.addEventListener('click',async e=>{
- const t=e.target.closest('[data-tab],[data-goto],[data-copyall],[data-deldebt],[data-delpay],[data-edit],[data-delprod]');
+ const t=e.target.closest('[data-tab],[data-goto],[data-copyall],[data-copytext],[data-deldebt],[data-delpay],[data-edit],[data-delprod]');
  if(!t)return;
  if(t.dataset.tab){go(t.dataset.tab);return}
  if(t.dataset.goto){go(t.dataset.goto);return}
+ if(t.dataset.copytext){
+  const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))];
+  const items=ids.map(id=>{
+   const group=debts.filter(d=>d.transactionId===id);
+   const total=group.reduce((n,d)=>n+Number(d.total||0),0);
+   const paid=paidTotal(id),left=total-paid;
+   const vouchers=group.map(d=>`• ${d.brand} ${d.code} (${d.voucherType||'Tergosok'}) — ${Number(d.qty)||0} voucher × ${rupiah(d.unitPrice)} = ${rupiah(d.total)}`).join('\\n');
+   return `ID: ${id}\\nTanggal: ${group[0]?.date||'-'}\\n${vouchers}\\nTotal: ${rupiah(total)}\\nDibayar: ${rupiah(paid)}\\nSisa: ${rupiah(left)}\\nStatus: ${left<=0?'LUNAS':'BELUM LUNAS'}`;
+  });
+  if(!items.length){toast('Belum ada utang untuk dikirim.');return}
+  const total=debts.reduce((n,d)=>n+Number(d.total||0),0);
+  const paid=payments.reduce((n,p)=>n+Number(p.amount||0),0);
+  const message=`*DAFTAR UTANG VOUCHER*\\nTanggal: ${new Date().toLocaleDateString('id-ID')}\\n\\n${items.join('\\n\\n--------------------\\n\\n')}\\n\\n*RINGKASAN KESELURUHAN*\\nTotal utang: ${rupiah(total)}\\nTotal dibayar: ${rupiah(paid)}\\nSisa utang: ${rupiah(total-paid)}`;
+  const waUrl='https://wa.me/?text='+encodeURIComponent(message);
+  window.open(waUrl,'_blank');
+  return;
+ }
  if(t.dataset.copyall){
   const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))];
   const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
