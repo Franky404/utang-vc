@@ -233,6 +233,28 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-ap
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import{getFirestore,collection,addDoc,getDocs,getDoc,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const $=id=>document.getElementById(id),rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0),today=()=>new Date().toLocaleDateString('en-CA');
+function compactRupiah(n){const value=(Number(n)||0)/1000;return new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(value)+'rb'}
+function voucherSummary(items){
+ const groups={'Tergosok':new Map(),'Di luar':new Map()};
+ for(const tx of items||[]){for(const v of tx.items||[]){
+  const type=(v.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok';
+  const brand=String(v.brand||'-').trim()||'-',code=String(v.code||'-').trim()||'-',key=[brand,code].join('|'),map=groups[type];
+  const entry=map.get(key)||{brand,code,qty:0,total:0};
+  const qty=Number(v.qty)||0,amount=Number(v.total)||qty*(Number(v.unitPrice)||0);
+  entry.qty+=qty;entry.total+=amount;map.set(key,entry);
+ }}
+ const lines=[];
+ for(const type of ['Tergosok','Di luar']){
+  lines.push(type==='Tergosok'?'VC YANG TERGOSOK:':'VC YANG DI LUAR:','');
+  const byBrand=new Map();
+  for(const v of groups[type].values()){if(!byBrand.has(v.brand))byBrand.set(v.brand,[]);byBrand.get(v.brand).push(v)}
+  for(const [brand,values] of byBrand){lines.push('-'+brand);for(const v of values)lines.push(`${v.code} = ${v.qty} , ${compactRupiah(v.total)}`);lines.push('')}
+ }
+ const sumType=type=>[...groups[type].values()].reduce((sum,v)=>sum+v.total,0);
+ const scratched=sumType('Tergosok'),outside=sumType('Di luar');
+ lines.push(`TOTAL VC ALL : ${compactRupiah(scratched+outside)}`,`-Tergosok : ${compactRupiah(scratched)}`,`-Diluar : ${compactRupiah(outside)}`);
+ return lines.join('\n');
+}
 const initial={"TSEL":["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],"AXIS":["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],"XL":["4/3","7,5/7","15/7","7/28","15/28","28/28"],"IM3":["6/2","6/5","10/5","13/7","7/28","15/28"],"TRI":["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],"SM":["6/3","6/7"],"B.YU":["12/2","8/3","10/5","10/7","9/14"],"Kabel & SP":["Kepala","Andro","iPhone","Type C","Axis","Tsel","Xl"]};
 let auth,db,user,products=[],debts=[],payments=[];
 const col=n=>collection(db,'users',user.uid,n),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -335,18 +357,8 @@ document.addEventListener('click',async e=>{
  if(t.dataset.tab){go(t.dataset.tab);return}
  if(t.dataset.goto){go(t.dataset.goto);return}
  if(t.dataset.copytext){
-  const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))];
-  const items=ids.map(id=>{
-   const group=debts.filter(d=>d.transactionId===id);
-   const total=group.reduce((n,d)=>n+Number(d.total||0),0);
-   const paid=paidTotal(id),left=total-paid;
-   const vouchers=group.map(d=>`• ${d.brand} ${d.code} (${d.voucherType||'Tergosok'}) — ${Number(d.qty)||0} voucher × ${rupiah(d.unitPrice)} = ${rupiah(d.total)}`).join('\\n');
-   return `ID: ${id}\\nTanggal: ${group[0]?.date||'-'}\\n${vouchers}\\nTotal: ${rupiah(total)}\\nDibayar: ${rupiah(paid)}\\nSisa: ${rupiah(left)}\\nStatus: ${left<=0?'LUNAS':'BELUM LUNAS'}`;
-  });
-  if(!items.length){toast('Belum ada utang untuk dikirim.');return}
-  const total=debts.reduce((n,d)=>n+Number(d.total||0),0);
-  const paid=payments.reduce((n,p)=>n+Number(p.amount||0),0);
-  const message=`*DAFTAR UTANG VOUCHER*\\nTanggal: ${new Date().toLocaleDateString('id-ID')}\\n\\n${items.join('\\n\\n--------------------\\n\\n')}\\n\\n*RINGKASAN KESELURUHAN*\\nTotal utang: ${rupiah(total)}\\nTotal dibayar: ${rupiah(paid)}\\nSisa utang: ${rupiah(total-paid)}`;
+  if(!debts.length){toast('Belum ada utang untuk dikirim.');return}
+  const message=voucherSummary([{items:debts.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty)||0,unitPrice:Number(d.unitPrice)||0,total:Number(d.total)||0}))}]);
   const waUrl='https://wa.me/?text='+encodeURIComponent(message);
   window.open(waUrl,'_blank');
   return;
@@ -412,11 +424,8 @@ async function showPublicPreview(){
   $('publicRemaining').textContent=rupiah(left);$('publicCount').textContent=data.items.length;
   $('publicDebt').textContent=rupiah(total);$('publicPaid').textContent=rupiah(paid);
   $('publicOpen').textContent=data.items.filter(x=>Number(x.remaining)>0).length;
-  const rows=data.items.map(x=>{
-   const vouchers=(x.items||[]).map(v=>`<div class="preview-voucher"><b>${safe(v.brand)} ${safe(v.code)}<small>${safe(v.voucherType||'Tergosok')}</small></b><span>${Number(v.qty)||0} voucher</span></div>`).join('');
-   return `<tr><td><b>${safe(x.id)}</b><div class="hint">${safe(x.date||'-')}</div></td><td>${vouchers||'-'}</td><td>${rupiah(x.total)}</td><td>${rupiah(x.paid)}</td><td><b>${rupiah(x.remaining)}</b></td><td><span class="pill ${Number(x.remaining)<=0?'green':'orange'}">${Number(x.remaining)<=0?'Lunas':'Belum lunas'}</span></td></tr>`;
-  }).join('');
-  $('publicDetails').innerHTML=rows?`<table class="public-table"><thead><tr><th>ID transaksi</th><th>Voucher</th><th>Total</th><th>Dibayar</th><th>Sisa</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada utang.</div>';
+  const summary=voucherSummary(data.items);
+  $('publicDetails').innerHTML=data.items.length?`<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:600 14px/1.75 ui-monospace,monospace;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0;color:var(--ink)">${safe(summary)}</pre>`:'<div class="empty">Belum ada utang.</div>';
  }catch(e){$('publicDetails').innerHTML=`<div class="preview-error"><b>Preview tidak dapat dibuka</b><span>${safe(e.message)}</span></div>`}
  return true;
 }
