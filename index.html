@@ -81,6 +81,55 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
 .price-editing{border:2px solid #526dff!important;box-shadow:0 0 0 4px #526dff18!important}
 #priceForm button[type=submit]{min-width:150px}
 @media(max-width:720px){.public-shell{width:100vw;max-width:100vw!important;padding:13px 14px}.public-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.public-shell .hero{flex-direction:column;align-items:flex-start}}
+
+/* V7 compact price table and polished share preview */
+.price-table{min-width:0!important;width:100%;table-layout:auto}
+.price-table th:last-child{width:112px}
+.price-table td{vertical-align:middle}
+.price-pair{display:flex;flex-direction:column;gap:4px;color:#74809a;font-size:11px}
+.price-pair b{color:#17213a;font-size:12px;margin-left:4px}
+.price-table .actions{flex-wrap:nowrap}
+.public-shell{max-width:1080px!important;padding-top:24px}
+#publicPreview{min-height:100vh;background:linear-gradient(180deg,#eef2ff 0,#f7f9fd 260px,#f4f6fb 100%)}
+#publicPreview .top{background:linear-gradient(115deg,#101a35,#263d75)}
+#publicPreview .topin{max-width:1080px}
+#publicPreview .brand{font-size:18px}
+#publicPreview .hero{border:0;border-radius:22px;padding:24px;background:linear-gradient(115deg,#4d65f5,#637cf7 55%,#20afc5);box-shadow:0 16px 35px #526dff26}
+#publicPreview .hero h2{font-size:23px}
+#publicPreview .stats{gap:12px}
+#publicPreview .stat{border-radius:17px}
+#publicPreview .card:not(.hero){border-radius:20px}
+#publicPreview .public-table{min-width:720px;border-collapse:separate;border-spacing:0}
+#publicPreview .public-table th{padding:15px 12px;background:#f6f8fd}
+#publicPreview .public-table td{padding:15px 12px;background:#fff;vertical-align:top}
+#publicPreview .public-table tbody tr:hover td{background:#fbfcff}
+.preview-voucher{display:flex;justify-content:space-between;gap:12px;padding:3px 0}
+.preview-voucher span{color:#77829a;white-space:nowrap;font-size:11px}
+.preview-loading,.preview-error{padding:34px 18px;display:flex;align-items:center;justify-content:center;gap:12px;flex-direction:column;text-align:center;color:#65718a}
+.preview-error b{color:#b23d50}.preview-error span{font-size:12px}
+.spinner{width:24px;height:24px;border:3px solid #dfe5ff;border-top-color:#526dff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:720px){
+ .price-table{min-width:0!important}
+ .price-table th,.price-table td{padding:10px 7px;font-size:11px}
+ .price-table th:last-child{width:95px}
+ .price-table .actions button{padding:7px 8px;font-size:10px}
+ #publicPreview .public-shell{width:100%;max-width:100%!important;padding:15px 13px}
+ #publicPreview .hero{padding:20px;border-radius:18px}
+ #publicPreview .hero h2{font-size:20px}
+ #publicPreview .public-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #publicPreview .public-table{min-width:680px}
+}
+
+/* Single-price voucher catalog */
+#tab-prices #priceForm{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#tab-prices #priceForm .field.full{grid-column:1/-1}
+#tab-prices .price-table{min-width:0!important;width:100%;table-layout:auto}
+#tab-prices .price-table th:last-child{width:120px}
+#tab-prices .price-table td{vertical-align:middle}
+#tab-prices .price-table td:nth-child(3){font-weight:750}
+@media(max-width:560px){#tab-prices #priceForm{grid-template-columns:minmax(0,1fr)}#tab-prices #priceForm .field.full{grid-column:auto}}
+.preview-voucher small{display:block;color:#7b879d;font-size:10px;font-weight:600;margin-top:2px}
 </style>
 </head>
 <body>
@@ -119,9 +168,10 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
    <div class="head"><h2>Tambah transaksi voucher</h2><span class="pill">ID otomatis</span></div>
    <form id="debtForm" class="grid">
     <div class="field"><label>Tanggal transaksi</label><input id="debtDate" type="date" required></div>
-    <div class="field"><label>Jenis voucher</label><select id="category"><option value="tergosok">Voucher tergosok</option><option value="luar">Voucher di luar</option></select></div>
+    
     <div class="field"><label>Merek</label><select id="brand"></select></div>
     <div class="field"><label>Nominal / kode voucher</label><select id="product"></select></div>
+    <div class="field"><label>Jenis voucher</label><select id="voucherType" required><option value="Tergosok">Tergosok</option><option value="Di luar">Di luar</option></select></div>
     <div class="field"><label>Jumlah voucher</label><input id="qty" type="number" min="1" step="1" value="1" required></div>
     <div class="field"><label>Harga satuan (Rp)</label><input id="unitPrice" type="number" min="0" step="1" required placeholder="Harga satuan"></div>
     <div class="field"><label>Total transaksi</label><input id="lineTotal" readonly value="Rp0"></div>
@@ -135,7 +185,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card"><div class="head"><h2>Catat pembayaran</h2></div><form id="paymentForm" class="grid">
    <div class="field full"><label>Pilih transaksi / voucher</label><select id="payTransaction" required></select></div>
    <div class="field"><label>Tanggal pembayaran</label><input id="payDate" type="date" required></div>
-   <div class="field"><label>Jenis voucher</label><input id="payVoucherType" readonly placeholder="Otomatis dari transaksi"></div>
+   <div class="field"><label>Voucher</label><input id="payVoucherType" readonly placeholder="Otomatis dari transaksi"></div>
    <div class="field"><label>Jumlah voucher yang dibayar</label><input id="payQty" type="number" min="1" step="1" value="1" required placeholder="Contoh: 2"></div>
    <div class="field"><label>Nilai pembayaran otomatis</label><input id="payAmountPreview" readonly value="Rp0"></div>
    <div class="field"><label>Catatan (opsional)</label><input id="payNote" placeholder="Keterangan pembayaran"></div>
@@ -145,7 +195,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
  </section>
  <section id="tab-prices" class="hidden">
   <div class="card"><div class="head"><h2>Kelola harga voucher</h2></div><form id="priceForm" class="grid">
-   <input id="editProductId" type="hidden"><div class="field"><label>Merek</label><select id="priceBrand"></select></div><div class="field"><label>Nominal / kode</label><input id="priceCode" required placeholder="Contoh: 5/1"></div><div class="field"><label>Harga tergosok (Rp)</label><input id="priceScratched" type="number" min="0" step="1"></div><div class="field"><label>Harga di luar (Rp)</label><input id="priceOutside" type="number" min="0" step="1"></div>
+   <input id="editProductId" type="hidden"><div class="field"><label>Merek</label><select id="priceBrand"></select></div><div class="field"><label>Nominal / kode</label><input id="priceCode" required placeholder="Contoh: 5/1"></div><div class="field"><label>Harga (Rp)</label><input id="priceValue" type="number" min="0" step="1" required placeholder="Masukkan harga voucher"></div>
    <div class="field full toolbar"><button type="submit">Simpan harga</button><button type="button" class="secondary" id="cancelEdit">Batal edit</button></div>
   </form></div><div class="card" style="margin-top:14px"><div class="head"><h2>Daftar harga tersimpan</h2></div><div id="priceList" class="tablewrap"></div></div>
  </section>
@@ -178,7 +228,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
 const firebaseConfig={apiKey:"AIzaSyD5TBx-GhU36hPLkk25okit6T7_f32pkRg",authDomain:"utang-voucher.firebaseapp.com",projectId:"utang-voucher",storageBucket:"utang-voucher.firebasestorage.app",messagingSenderId:"1027357282419",appId:"1:1027357282419:web:af78b6a16c4af751e01a06",measurementId:"G-364BRR5H0S"};
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import{getFirestore,collection,addDoc,getDocs,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import{getFirestore,collection,addDoc,getDocs,getDoc,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const $=id=>document.getElementById(id),rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0),today=()=>new Date().toLocaleDateString('en-CA');
 const initial={Tsel:["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],Axis:["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],XL:["4/3","7,5/7","15/7","7/28","15/28","28/28"],IM3:["6/2","6/5","10/5","13/7","7/28","16/28"],TRI:["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],SM:["6/3","6/5"],BYU:["12/2","8/3","10/5","10/7","9/14"]};
 let auth,db,user,products=[],debts=[],payments=[];
@@ -205,8 +255,8 @@ async function migrateLegacy(){
  for(const name of groups){const id='TRX-'+String(++max).padStart(4,'0');for(const d of debts.filter(x=>x.friend===name&&!x.transactionId)){await updateDoc(doc(db,'users',user.uid,'debts',d.id),{transactionId:id,legacyMigrated:true,friend:deleteField()});d.transactionId=id}}
  for(const p of payments.filter(x=>x.friend&&!x.transactionId)){const related=debts.find(d=>d.friend===p.friend);if(related){await updateDoc(doc(db,'users',user.uid,'payments',p.id),{transactionId:related.transactionId,legacyMigrated:true,friend:deleteField()});p.transactionId=related.transactionId}}
 }
-async function seed(){if(products.length)return;for(const [brand,codes]of Object.entries(initial))for(const code of codes)await addDoc(col('products'),{brand,code,scratched:0,outside:0,createdAt:serverTimestamp()})}
-function priceFor(p){return Number($('category').value==='tergosok'?p.scratched:p.outside)||0}
+async function seed(){if(products.length)return;for(const [brand,codes]of Object.entries(initial))for(const code of codes)await addDoc(col('products'),{brand,code,price:0,createdAt:serverTimestamp()})}
+function priceFor(p){return Number(p.price??(Number(p.scratched)||Number(p.outside)||0))||0}
 function renderAll(){
  const total=debts.reduce((a,d)=>a+Number(d.total||0),0),paid=payments.reduce((a,p)=>a+Number(p.amount||0),0),ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))],settled=ids.filter(id=>remaining(id)<=0).length,left=total-paid,pct=total?Math.min(100,Math.max(0,paid/total*100)):0;
  $('totalDebt').textContent=rupiah(total);$('totalPaid').textContent=rupiah(paid);$('heroRemaining').textContent=rupiah(left);$('countDebt').textContent=ids.length;$('settledCount').textContent=settled;$('paidPercent').textContent=Math.round(pct)+'%';$('paidBar').style.width=pct+'%';$('paidCaption').textContent=`${rupiah(paid)} dari ${rupiah(total)} sudah dibayar.`;
@@ -219,17 +269,17 @@ function updateTotal(){$('lineTotal').value=rupiah((Number($('qty').value)||0)*(
 function updateBalance(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id);if(!id||!d){$('selectedBalance').textContent='Pilih transaksi yang masih memiliki voucher belum dibayar.';$('payVoucherType').value='';$('payQty').max=1;$('payAmountPreview').value=rupiah(0);return}
  const left=remainingQty(id);$('payVoucherType').value=`${d.brand} ${d.code}`;$('payQty').max=String(left);if(Number($('payQty').value)>left)$('payQty').value=left||1;$('selectedBalance').textContent=`${id} · ${d.brand} ${d.code} · Sisa ${left} dari ${debtQty(id)} voucher · Sisa nilai ${rupiah(remaining(id))}`;updatePayPreview()}
 function updatePayPreview(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id),qty=Number($('payQty').value)||0;$('payAmountPreview').value=rupiah(qty*Number(d?.unitPrice||0))}
-function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small secondary" data-copyreceipt="${d.id}">Bagikan Preview</button><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
-function renderPayments(){const term=$('paymentSearch').value.toLowerCase(),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(p=>(p.transactionId||'').toLowerCase().includes(term)).map(p=>{const d=debts.find(x=>x.transactionId===p.transactionId);return `<tr><td>${safe(p.date)}</td><td><b>${safe(p.transactionId||'—')}</b></td><td>${safe(p.brand||d?.brand||'')} ${safe(p.code||d?.code||'')}</td><td>${p.qty===undefined?'Riwayat lama':Number(p.qty)+' voucher'}</td><td>${rupiah(p.amount)}</td><td>${safe(p.note||'-')}</td><td><button class="small danger" data-delpay="${p.id}">Hapus</button></td></tr>`}).join('');$('paymentList').innerHTML=rows?`<table><thead><tr><th>Tanggal</th><th>ID transaksi</th><th>Jenis voucher</th><th>Jumlah dibayar</th><th>Nilai</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada pembayaran.</div>'}
-function renderPrices(){const rows=products.slice().sort((a,b)=>(a.brand+a.code).localeCompare(b.brand+b.code)).map(p=>`<tr><td>${safe(p.brand)}</td><td>${safe(p.code)}</td><td>${rupiah(p.scratched)}</td><td>${rupiah(p.outside)}</td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table><thead><tr><th>Merek</th><th>Nominal</th><th>Tergosok</th><th>Di luar</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
+function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code} ${d.voucherType||""}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}<div class="hint">${safe(d.voucherType||"-")}</div></td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small secondary" data-copyreceipt="${d.id}">Bagikan Preview</button><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
+function renderPayments(){const term=$('paymentSearch').value.toLowerCase(),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(p=>(p.transactionId||'').toLowerCase().includes(term)).map(p=>{const d=debts.find(x=>x.transactionId===p.transactionId);return `<tr><td>${safe(p.date)}</td><td><b>${safe(p.transactionId||'—')}</b></td><td>${safe(p.brand||d?.brand||'')} ${safe(p.code||d?.code||'')}<div class="hint">${safe(d?.voucherType||'-')}</div></td><td>${p.qty===undefined?'Riwayat lama':Number(p.qty)+' voucher'}</td><td>${rupiah(p.amount)}</td><td>${safe(p.note||'-')}</td><td><button class="small danger" data-delpay="${p.id}">Hapus</button></td></tr>`}).join('');$('paymentList').innerHTML=rows?`<table><thead><tr><th>Tanggal</th><th>ID transaksi</th><th>Voucher</th><th>Jumlah dibayar</th><th>Nilai</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada pembayaran.</div>'}
+function renderPrices(){const rows=products.slice().sort((a,b)=>(a.brand+a.code).localeCompare(b.brand+b.code)).map(p=>`<tr><td><b>${safe(p.brand)}</b></td><td>${safe(p.code)}</td><td><b>${rupiah(priceFor(p))}</b></td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table class="price-table"><thead><tr><th>Merek</th><th>Nominal</th><th>Harga</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
 function renderRecent(){const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6).map(d=>`<tr><td><b>${safe(d.transactionId)}</b></td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${rupiah(d.total)}</td><td><span class="pill ${remaining(d.transactionId)<=0?'green':'orange'}">${remaining(d.transactionId)<=0?'Lunas':'Berjalan'}</span></td></tr>`).join('');$('recentList').innerHTML=rows?`<div class="tablewrap"><table><thead><tr><th>ID</th><th>Voucher</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas.</div>'}
 function go(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['dashboard','transactions','payments','prices','reports'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;$('loginBtn').textContent='Memeriksa akun...';try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value)}catch(e){toast(e.code==='auth/invalid-credential'?'Email atau password salah.':e.code==='auth/too-many-requests'?'Terlalu banyak percobaan. Coba beberapa saat lagi.':'Login gagal: '+e.message)}finally{$('loginBtn').disabled=false;$('loginBtn').innerHTML='Masuk ke dashboard <span>→</span>'}};$('togglePassword').onclick=()=>{const p=$('password');p.type=p.type==='password'?'text':'password';$('togglePassword').textContent=p.type==='password'?'Lihat':'Tutup'};$('logoutBtn').onclick=()=>signOut(auth);
-$('debtDate').value=today();$('payDate').value=today();$('category').onchange=renderProductOptions;$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('unitPrice').oninput=updateTotal;$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
-$('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=Number($('unitPrice').value);if(!p||qty<1||unit<0)return toast('Periksa data voucher dan harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,category:$('category').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
+$('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('unitPrice').oninput=updateTotal;$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
+$('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=Number($('unitPrice').value);if(!p||qty<1||unit<0)return toast('Periksa data voucher dan harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,voucherType:$('voucherType').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
 $('paymentForm').onsubmit=async e=>{e.preventDefault();const transactionId=$('payTransaction').value,d=debts.find(x=>x.transactionId===transactionId),qty=Number($('payQty').value),left=remainingQty(transactionId);if(!d||!Number.isInteger(qty)||qty<1)return toast('Pilih transaksi dan masukkan jumlah voucher yang benar.');if(qty>left)return toast(`Jumlah melebihi sisa voucher (${left}).`);const amount=qty*Number(d.unitPrice||0);await addDoc(col('payments'),{transactionId,date:$('payDate').value,brand:d.brand,code:d.code,qty,unitPrice:Number(d.unitPrice||0),amount,note:$('payNote').value.trim(),createdAt:serverTimestamp()});$('payQty').value=1;$('payNote').value='';await loadAll();toast(`${qty} voucher untuk ${transactionId} berhasil dicatat.`)};
-$('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId').value,brand=$('priceBrand').value,code=$('priceCode').value.trim();if(!brand||!code)return toast('Pilih merek dan isi nominal voucher.');const data={brand,code,scratched:Math.max(0,Number($('priceScratched').value)||0),outside:Math.max(0,Number($('priceOutside').value)||0),updatedAt:serverTimestamp()};const submit=$('priceForm').querySelector('button[type="submit"]');submit.disabled=true;try{if(id){await updateDoc(doc(db,'users',user.uid,'products',id),data)}else{await addDoc(col('products'),{...data,createdAt:serverTimestamp()})}clearPrice();await loadAll();toast(id?'Perubahan harga berhasil disimpan.':'Harga baru berhasil ditambahkan.')}catch(err){toast('Gagal menyimpan harga: '+err.message)}finally{submit.disabled=false}};
-function clearPrice(){$('editProductId').value='';$('priceCode').value='';$('priceScratched').value='';$('priceOutside').value='';$('priceForm').classList.remove('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan harga'}
+$('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId').value,brand=$('priceBrand').value,code=$('priceCode').value.trim();if(!brand||!code)return toast('Pilih merek dan isi nominal voucher.');const price=Math.max(0,Number($('priceValue').value)||0),data={brand,code,price,updatedAt:serverTimestamp()};const submit=$('priceForm').querySelector('button[type="submit"]');submit.disabled=true;try{if(id){await updateDoc(doc(db,'users',user.uid,'products',id),{...data,scratched:deleteField(),outside:deleteField()})}else{await addDoc(col('products'),{...data,createdAt:serverTimestamp()})}clearPrice();await loadAll();toast(id?'Perubahan harga berhasil disimpan.':'Harga baru berhasil ditambahkan.')}catch(err){toast('Gagal menyimpan harga: '+err.message)}finally{submit.disabled=false}};
+function clearPrice(){$('editProductId').value='';$('priceCode').value='';$('priceValue').value='';$('priceForm').classList.remove('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan harga'}
 $('cancelEdit').onclick=clearPrice;
 document.addEventListener('click',async e=>{
  const t=e.target.closest('[data-tab],[data-goto],[data-copyall],[data-copyreceipt],[data-deldebt],[data-delpay],[data-edit],[data-delprod]');
@@ -238,13 +288,17 @@ document.addEventListener('click',async e=>{
  if(t.dataset.goto){go(t.dataset.goto);return}
  if(t.dataset.copyall){
   const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))];
-  const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({brand:d.brand,code:d.code,qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
+  const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
   if(!items.length){toast('Belum ada transaksi untuk dibagikan.');return}
   const payload={kind:'all-debts',createdAt:new Date().toISOString(),items,total:items.reduce((n,x)=>n+x.total,0),paid:items.reduce((n,x)=>n+x.paid,0),remaining:items.reduce((n,x)=>n+x.remaining,0)};
-  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
-  const url=location.origin+location.pathname+'?preview='+encoded;
-  try{if(navigator.share){await navigator.share({title:'Daftar Semua Utang Voucher',text:'Preview seluruh daftar utang voucher:',url})}else{await navigator.clipboard.writeText(url);toast('Link semua utang berhasil disalin.')}}
-  catch(err){if(err.name!=='AbortError'){try{await navigator.clipboard.writeText(url);toast('Link semua utang berhasil disalin.')}catch(e){prompt('Salin link preview semua utang:',url)}}}
+  const token=Array.from(crypto.getRandomValues(new Uint8Array(6)),b=>'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b%62]).join('');
+  try{
+   await setDoc(doc(db,'publicPreviews',token),payload);
+   const url=location.origin+location.pathname+'?p='+token;
+   if(navigator.share){try{await navigator.share({title:'Daftar Semua Utang Voucher',text:'Preview seluruh daftar utang voucher:',url})}catch(err){if(err.name!=='AbortError')throw err}}
+   else{await navigator.clipboard.writeText(url);toast('Link pendek semua utang berhasil disalin.')}
+   if(!navigator.share)toast('Link pendek semua utang berhasil disalin.');
+  }catch(err){toast('Gagal membuat link preview: '+err.message);console.error(err)}
   return;
  }
  if(t.dataset.copyreceipt){
@@ -260,7 +314,7 @@ document.addEventListener('click',async e=>{
  }
  if(t.dataset.edit){
   const p=products.find(x=>x.id===t.dataset.edit);
-  if(p){go('prices');$('editProductId').value=p.id;$('priceBrand').value=p.brand;$('priceCode').value=p.code;$('priceScratched').value=p.scratched??0;$('priceOutside').value=p.outside??0;$('priceForm').classList.add('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan perubahan harga';$('priceForm').scrollIntoView({behavior:'smooth',block:'start'});toast('Mode edit: '+p.brand+' '+p.code)}
+  if(p){go('prices');$('editProductId').value=p.id;$('priceBrand').value=p.brand;$('priceCode').value=p.code;$('priceValue').value=priceFor(p);$('priceForm').classList.add('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan perubahan harga';$('priceForm').scrollIntoView({behavior:'smooth',block:'start'});toast('Mode edit: '+p.brand+' '+p.code)}
   return;
  }
  if(t.dataset.deldebt&&confirm('Hapus transaksi ini? Pembayaran terkait juga akan dihapus.')){
@@ -272,31 +326,36 @@ document.addEventListener('click',async e=>{
  if(t.dataset.delprod&&confirm('Hapus harga voucher?')){await deleteDoc(doc(db,'users',user.uid,'products',t.dataset.delprod));await loadAll();toast('Harga dihapus.');return}
 });
 $('exportJson').onclick=()=>download('utang-voucher-backup.json',JSON.stringify({version:2,exportedAt:new Date().toISOString(),products,debts,payments},null,2),'application/json');
-$('exportCsv').onclick=()=>{const lines=[['ID Transaksi','Tanggal','Merek','Nominal','Kategori','Jumlah','Harga Satuan','Total','Total Dibayar','Sisa','Status'],...debts.map(d=>[d.transactionId,d.date,d.brand,d.code,d.category,d.qty,d.unitPrice,d.total,paidTotal(d.transactionId),remaining(d.transactionId),remaining(d.transactionId)<=0?'Lunas':'Berjalan'])];download('laporan-voucher.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
+$('exportCsv').onclick=()=>{const lines=[['ID Transaksi','Tanggal','Merek','Nominal','Jumlah','Harga Satuan','Total','Total Dibayar','Sisa','Status'],...debts.map(d=>[d.transactionId,d.date,d.brand,d.code,d.qty,d.unitPrice,d.total,paidTotal(d.transactionId),remaining(d.transactionId),remaining(d.transactionId)<=0?'Lunas':'Berjalan'])];download('laporan-voucher.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
 function download(name,data,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 $('importJson').onclick=async()=>{const f=$('importFile').files[0];if(!f)return toast('Pilih file backup JSON.');try{const x=JSON.parse(await f.text());if(!Array.isArray(x.products)||!Array.isArray(x.debts)||!Array.isArray(x.payments))throw Error('Format backup tidak valid.');if(!confirm('Tambahkan seluruh data dari backup ke database?'))return;for(const p of x.products){const{ id,...data}=p;await addDoc(col('products'),data)}for(const d of x.debts){const{ id,...data}=d;await addDoc(col('debts'),data)}for(const p of x.payments){const{ id,...data}=p;await addDoc(col('payments'),data)}await loadAll();toast('Backup berhasil diimpor.')}catch(e){toast('Gagal impor: '+e.message)}};
-function showPublicPreview(){
+async function showPublicPreview(){
+ const token=new URLSearchParams(location.search).get('p');
+ if(!token)return false;
+ $('auth').classList.add('hidden');$('app').classList.add('hidden');$('publicPreview').classList.remove('hidden');
+ $('publicDetails').innerHTML='<div class="preview-loading"><span class="spinner"></span><b>Memuat daftar utang...</b></div>';
  try{
-  const raw=new URLSearchParams(location.search).get('preview');if(!raw)return false;
-  const normalized=raw.replace(/-/g,'+').replace(/_/g,'/'),pad=normalized+'='.repeat((4-normalized.length%4)%4);
-  const data=JSON.parse(decodeURIComponent(escape(atob(pad))));
+  const snap=await getDoc(doc(db,'publicPreviews',token));
+  if(!snap.exists())throw Error('Link preview tidak ditemukan atau sudah tidak tersedia.');
+  const data=snap.data();
   if(!data||!Array.isArray(data.items))throw Error('Data preview tidak valid.');
-  $('auth').classList.add('hidden');$('app').classList.add('hidden');$('publicPreview').classList.remove('hidden');
   const total=Number(data.total)||0,paid=Number(data.paid)||0,left=Number(data.remaining)||0;
   $('publicRemaining').textContent=rupiah(left);$('publicCount').textContent=data.items.length;
   $('publicDebt').textContent=rupiah(total);$('publicPaid').textContent=rupiah(paid);
   $('publicOpen').textContent=data.items.filter(x=>Number(x.remaining)>0).length;
   const rows=data.items.map(x=>{
-   const vouchers=(x.items||[]).map(v=>`${safe(v.brand)} ${safe(v.code)} (${Number(v.qty)||0})`).join('<br>');
-   return `<tr><td><b>${safe(x.id)}</b><div class="hint">${safe(x.date||'-')}</div></td><td>${vouchers||'-'}</td><td>${Number(x.qty)||0} voucher</td><td>${rupiah(x.total)}</td><td>${rupiah(x.paid)}</td><td><b>${rupiah(x.remaining)}</b></td><td><span class="pill ${Number(x.remaining)<=0?'green':'orange'}">${Number(x.remaining)<=0?'Lunas':'Belum lunas'}</span></td></tr>`;
+   const vouchers=(x.items||[]).map(v=>`<div class="preview-voucher"><b>${safe(v.brand)} ${safe(v.code)}<small>${safe(v.voucherType||'Tergosok')}</small></b><span>${Number(v.qty)||0} voucher</span></div>`).join('');
+   return `<tr><td><b>${safe(x.id)}</b><div class="hint">${safe(x.date||'-')}</div></td><td>${vouchers||'-'}</td><td>${rupiah(x.total)}</td><td>${rupiah(x.paid)}</td><td><b>${rupiah(x.remaining)}</b></td><td><span class="pill ${Number(x.remaining)<=0?'green':'orange'}">${Number(x.remaining)<=0?'Lunas':'Belum lunas'}</span></td></tr>`;
   }).join('');
-  $('publicDetails').innerHTML=rows?`<table class="public-table"><thead><tr><th>ID / Tanggal</th><th>Jenis voucher</th><th>Jumlah</th><th>Total</th><th>Dibayar</th><th>Sisa</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada utang.</div>';
-  return true;
- }catch(e){
-  $('auth').classList.add('hidden');$('app').classList.add('hidden');$('publicPreview').classList.remove('hidden');
-  $('publicDetails').textContent='Link preview tidak valid atau rusak.';return true;
- }
+  $('publicDetails').innerHTML=rows?`<table class="public-table"><thead><tr><th>ID transaksi</th><th>Voucher</th><th>Total</th><th>Dibayar</th><th>Sisa</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada utang.</div>';
+ }catch(e){$('publicDetails').innerHTML=`<div class="preview-error"><b>Preview tidak dapat dibuka</b><span>${safe(e.message)}</span></div>`}
+ return true;
 }
-if(!showPublicPreview()){try{const fb=initializeApp(firebaseConfig);auth=getAuth(fb);db=getFirestore(fb);onAuthStateChanged(auth,async u=>{user=u;$('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);if(u){try{await loadAll();await seed();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}})}catch(e){toast(e.message);console.error(e)}}
+try{
+ const fb=initializeApp(firebaseConfig);auth=getAuth(fb);db=getFirestore(fb);
+ if(new URLSearchParams(location.search).has('p')){await showPublicPreview()}
+ else{onAuthStateChanged(auth,async u=>{user=u;$('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);if(u){try{await loadAll();await seed();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}})}
+}catch(e){toast('Firebase: '+e.message);console.error(e)}
+
 </script>
 </body></html>
