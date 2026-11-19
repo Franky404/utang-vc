@@ -230,7 +230,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-ap
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import{getFirestore,collection,addDoc,getDocs,getDoc,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const $=id=>document.getElementById(id),rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0),today=()=>new Date().toLocaleDateString('en-CA');
-const initial={"TSEL":["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],"AXIS":["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],"XL":["4/3","7,5/7","15/7","7/28","15/28","28/28"],"IM3":["6/2","6/5","10/5","13/7","7/28","15/28"],"TRI":["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],"SM":["6/3","6/7"],"B.YU":["12/2","8/3","10/5","10/7","9/14"]};
+const initial={"TSEL":["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],"AXIS":["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],"XL":["4/3","7,5/7","15/7","7/28","15/28","28/28"],"IM3":["6/2","6/5","10/5","13/7","7/28","15/28"],"TRI":["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],"SM":["6/3","6/7"],"B.YU":["12/2","8/3","10/5","10/7","9/14"],"Kabel & SP":["Kepala","Andro","iPhone","Type C","Axis","Tsel","Xl"]};
 let auth,db,user,products=[],debts=[],payments=[];
 const col=n=>collection(db,'users',user.uid,n),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}
@@ -256,29 +256,35 @@ async function migrateLegacy(){
  for(const p of payments.filter(x=>x.friend&&!x.transactionId)){const related=debts.find(d=>d.friend===p.friend);if(related){await updateDoc(doc(db,'users',user.uid,'payments',p.id),{transactionId:related.transactionId,legacyMigrated:true,friend:deleteField()});p.transactionId=related.transactionId}}
 }
 async function seed(){
- const markerRef=doc(db,'users',user.uid,'settings','voucher_catalog_v15');
+ const markerRef=doc(db,'users',user.uid,'settings','voucher_catalog_v16');
  const marker=await getDoc(markerRef);
  if(marker.exists())return;
- const catalog={"TSEL":[{"code":"5/1","price":11000},{"code":"7/2","price":13000},{"code":"7/3","price":15000},{"code":"7/5","price":17000},{"code":"7/7","price":22000},{"code":"11/7","price":30000},{"code":"10/28","price":48000}],"AXIS":[{"code":"10/1","price":10000},{"code":"6,5/3","price":15000},{"code":"6/5","price":17000},{"code":"10/5","price":18000},{"code":"14/3","price":19000},{"code":"17/5","price":27000},{"code":"25/5","price":30000},{"code":"12/14","price":35000},{"code":"27/14","price":48000},{"code":"7/28","price":33000},{"code":"10/28","price":43000},{"code":"15/28","price":48000},{"code":"30/28","price":70000},{"code":"45/28","price":85000}],"XL":[{"code":"4/3","price":15000},{"code":"7,5/7","price":22000},{"code":"15/7","price":27000},{"code":"7/28","price":36000},{"code":"15/28","price":48000},{"code":"28/28","price":68000}],"IM3":[{"code":"6/2","price":12000},{"code":"6/5","price":17000},{"code":"10/5","price":21000},{"code":"13/7","price":26000},{"code":"7/28","price":38000},{"code":"15/28","price":49000}],"TRI":[{"code":"10/1","price":11000},{"code":"11/3","price":17000},{"code":"10/5","price":21000},{"code":"12/5","price":24000},{"code":"15/7","price":27000},{"code":"8/28","price":35000},{"code":"16/28","price":49000}],"SM":[{"code":"6/3","price":15000},{"code":"6/7","price":17000}],"B.YU":[{"code":"12/2","price":12000},{"code":"8/3","price":14000},{"code":"10/5","price":16000},{"code":"10/7","price":21000},{"code":"9/14","price":26000}]};
- const canonBrand=v=>{const x=String(v||'').trim().toUpperCase();return x==='BYU'?'B.YU':x};
- const key=(brand,code)=>canonBrand(brand)+'|'+String(code||'').trim();
- const desired=new Map();
- for(const [brand,rows] of Object.entries(catalog))for(const row of rows)desired.set(key(brand,row.code),{brand,code:row.code,price:row.price});
- const grouped=new Map();
- for(const p of products){const k=key(p.brand,p.code);if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(p)}
- const keep=new Set();
- for(const [k,row] of desired){
-  const matches=grouped.get(k)||[];
-  if(matches.length){
-   const chosen=matches[0];keep.add(chosen.id);
-   await updateDoc(doc(db,'users',user.uid,'products',chosen.id),{brand:row.brand,code:row.code,price:row.price,scratched:deleteField(),outside:deleteField(),updatedAt:serverTimestamp()});
-   for(const duplicate of matches.slice(1))await deleteDoc(doc(db,'users',user.uid,'products',duplicate.id));
-  }else{
-   const added=await addDoc(col('products'),{...row,createdAt:serverTimestamp()});keep.add(added.id);
+ const existing=new Set(products.map(p=>String(p.brand||'').trim()+'|'+String(p.code||'').trim()));
+ for(const [brand,codes] of Object.entries(initial)){
+  for(const code of codes){
+   const key=brand+'|'+code;
+   if(existing.has(key))continue;
+   await addDoc(col('products'),{brand,code,price:0,createdAt:serverTimestamp()});
+   existing.add(key);
   }
  }
- for(const p of products)if(!keep.has(p.id))await deleteDoc(doc(db,'users',user.uid,'products',p.id));
- await setDoc(markerRef,{version:15,completedAt:serverTimestamp()});
+ await setDoc(markerRef,{version:16,completedAt:serverTimestamp()});
+}
+async function seedKabelSPPrices(){
+ const markerRef=doc(db,'users',user.uid,'settings','kabel_sp_prices_v17');
+ const marker=await getDoc(markerRef);
+ if(marker.exists())return;
+ const prices={"Kepala":25000,"Andro":20000,"iPhone":20000,"Type C":20000,"Axis":35000,"Tsel":35000,"Xl":35000};
+ for(const [label,price] of Object.entries(prices)){
+  let found=products.find(p=>p.brand==='Kabel & SP'&&p.code===label);
+  if(!found&&label==='Type C')found=products.find(p=>p.brand==='Kabel & SP'&&p.code==='Type');
+  if(found){
+   await updateDoc(doc(db,'users',user.uid,'products',found.id),{brand:'Kabel & SP',code:label,price,updatedAt:serverTimestamp()});
+  }else{
+   await addDoc(col('products'),{brand:'Kabel & SP',code:label,price,createdAt:serverTimestamp()});
+  }
+ }
+ await setDoc(markerRef,{version:17,completedAt:serverTimestamp()});
 }
 function priceFor(p){return Number(p.price??(Number(p.scratched)||Number(p.outside)||0))||0}
 function renderAll(){
@@ -290,7 +296,7 @@ function renderSelects(){
  const brands=Object.keys(initial).filter(b=>products.some(p=>p.brand===b));
  const opts=brands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
  $('brand').innerHTML=opts;$('priceBrand').innerHTML=opts;
- const paymentBrands=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0).map(d=>d.brand).filter(Boolean))].sort();
+ const brandOrder=Object.keys(initial);const paymentBrands=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0).map(d=>d.brand).filter(Boolean))].sort((a,b)=>brandOrder.indexOf(a)-brandOrder.indexOf(b));
  const selectedBrand=$('payBrandFilter').value;
  $('payBrandFilter').innerHTML='<option value="">Semua merek</option>'+paymentBrands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
  if(paymentBrands.includes(selectedBrand))$('payBrandFilter').value=selectedBrand;
@@ -412,7 +418,7 @@ try{
    user=u;
    if(u&&checkAway()){return}
    $('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);
-   if(u){try{await loadAll();await seed();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}
+   if(u){try{await loadAll();await seed();await loadAll();await seedKabelSPPrices();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}
   });
  }
 }catch(e){toast('Firebase: '+e.message);console.error(e)}
