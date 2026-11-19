@@ -173,7 +173,6 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
     <div class="field"><label>Nominal / kode voucher</label><select id="product"></select></div>
     <div class="field"><label>Jenis voucher</label><select id="voucherType" required><option value="Tergosok">Tergosok</option><option value="Di luar">Di luar</option></select></div>
     <div class="field"><label>Jumlah voucher</label><input id="qty" type="number" min="1" step="1" value="1" required></div>
-    <div class="field"><label>Harga satuan (Rp)</label><input id="unitPrice" type="number" min="0" step="1" required placeholder="Harga satuan"></div>
     <div class="field"><label>Total transaksi</label><input id="lineTotal" readonly value="Rp0"></div>
     <div class="field"><label>Catatan (opsional)</label><input id="debtNote" placeholder="Keterangan transaksi"></div>
     <div class="field full"><button type="submit">Simpan transaksi</button></div>
@@ -183,6 +182,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
  </section>
  <section id="tab-payments" class="hidden">
   <div class="card"><div class="head"><h2>Catat pembayaran</h2></div><form id="paymentForm" class="grid">
+   <div class="field"><label>Merek voucher</label><select id="payBrandFilter"><option value="">Semua merek</option></select></div>
    <div class="field full"><label>Pilih transaksi / voucher</label><select id="payTransaction" required></select></div>
    <div class="field"><label>Tanggal pembayaran</label><input id="payDate" type="date" required></div>
    <div class="field"><label>Voucher</label><input id="payVoucherType" readonly placeholder="Otomatis dari transaksi"></div>
@@ -230,7 +230,7 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-ap
 import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import{getFirestore,collection,addDoc,getDocs,getDoc,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const $=id=>document.getElementById(id),rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0),today=()=>new Date().toLocaleDateString('en-CA');
-const initial={Tsel:["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],Axis:["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],XL:["4/3","7,5/7","15/7","7/28","15/28","28/28"],IM3:["6/2","6/5","10/5","13/7","7/28","16/28"],TRI:["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],SM:["6/3","6/5"],BYU:["12/2","8/3","10/5","10/7","9/14"]};
+const initial={"TSEL":["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],"AXIS":["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],"XL":["4/3","7,5/7","15/7","7/28","15/28","28/28"],"IM3":["6/2","6/5","10/5","13/7","7/28","15/28"],"TRI":["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],"SM":["6/3","6/7"],"B.YU":["12/2","8/3","10/5","10/7","9/14"]};
 let auth,db,user,products=[],debts=[],payments=[];
 const col=n=>collection(db,'users',user.uid,n),safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2600)}
@@ -255,28 +255,67 @@ async function migrateLegacy(){
  for(const name of groups){const id='TRX-'+String(++max).padStart(4,'0');for(const d of debts.filter(x=>x.friend===name&&!x.transactionId)){await updateDoc(doc(db,'users',user.uid,'debts',d.id),{transactionId:id,legacyMigrated:true,friend:deleteField()});d.transactionId=id}}
  for(const p of payments.filter(x=>x.friend&&!x.transactionId)){const related=debts.find(d=>d.friend===p.friend);if(related){await updateDoc(doc(db,'users',user.uid,'payments',p.id),{transactionId:related.transactionId,legacyMigrated:true,friend:deleteField()});p.transactionId=related.transactionId}}
 }
-async function seed(){if(products.length)return;for(const [brand,codes]of Object.entries(initial))for(const code of codes)await addDoc(col('products'),{brand,code,price:0,createdAt:serverTimestamp()})}
+async function seed(){
+ const markerRef=doc(db,'users',user.uid,'settings','voucher_catalog_v15');
+ const marker=await getDoc(markerRef);
+ if(marker.exists())return;
+ const catalog={"TSEL":[{"code":"5/1","price":11000},{"code":"7/2","price":13000},{"code":"7/3","price":15000},{"code":"7/5","price":17000},{"code":"7/7","price":22000},{"code":"11/7","price":30000},{"code":"10/28","price":48000}],"AXIS":[{"code":"10/1","price":10000},{"code":"6,5/3","price":15000},{"code":"6/5","price":17000},{"code":"10/5","price":18000},{"code":"14/3","price":19000},{"code":"17/5","price":27000},{"code":"25/5","price":30000},{"code":"12/14","price":35000},{"code":"27/14","price":48000},{"code":"7/28","price":33000},{"code":"10/28","price":43000},{"code":"15/28","price":48000},{"code":"30/28","price":70000},{"code":"45/28","price":85000}],"XL":[{"code":"4/3","price":15000},{"code":"7,5/7","price":22000},{"code":"15/7","price":27000},{"code":"7/28","price":36000},{"code":"15/28","price":48000},{"code":"28/28","price":68000}],"IM3":[{"code":"6/2","price":12000},{"code":"6/5","price":17000},{"code":"10/5","price":21000},{"code":"13/7","price":26000},{"code":"7/28","price":38000},{"code":"15/28","price":49000}],"TRI":[{"code":"10/1","price":11000},{"code":"11/3","price":17000},{"code":"10/5","price":21000},{"code":"12/5","price":24000},{"code":"15/7","price":27000},{"code":"8/28","price":35000},{"code":"16/28","price":49000}],"SM":[{"code":"6/3","price":15000},{"code":"6/7","price":17000}],"B.YU":[{"code":"12/2","price":12000},{"code":"8/3","price":14000},{"code":"10/5","price":16000},{"code":"10/7","price":21000},{"code":"9/14","price":26000}]};
+ const canonBrand=v=>{const x=String(v||'').trim().toUpperCase();return x==='BYU'?'B.YU':x};
+ const key=(brand,code)=>canonBrand(brand)+'|'+String(code||'').trim();
+ const desired=new Map();
+ for(const [brand,rows] of Object.entries(catalog))for(const row of rows)desired.set(key(brand,row.code),{brand,code:row.code,price:row.price});
+ const grouped=new Map();
+ for(const p of products){const k=key(p.brand,p.code);if(!grouped.has(k))grouped.set(k,[]);grouped.get(k).push(p)}
+ const keep=new Set();
+ for(const [k,row] of desired){
+  const matches=grouped.get(k)||[];
+  if(matches.length){
+   const chosen=matches[0];keep.add(chosen.id);
+   await updateDoc(doc(db,'users',user.uid,'products',chosen.id),{brand:row.brand,code:row.code,price:row.price,scratched:deleteField(),outside:deleteField(),updatedAt:serverTimestamp()});
+   for(const duplicate of matches.slice(1))await deleteDoc(doc(db,'users',user.uid,'products',duplicate.id));
+  }else{
+   const added=await addDoc(col('products'),{...row,createdAt:serverTimestamp()});keep.add(added.id);
+  }
+ }
+ for(const p of products)if(!keep.has(p.id))await deleteDoc(doc(db,'users',user.uid,'products',p.id));
+ await setDoc(markerRef,{version:15,completedAt:serverTimestamp()});
+}
 function priceFor(p){return Number(p.price??(Number(p.scratched)||Number(p.outside)||0))||0}
 function renderAll(){
  const total=debts.reduce((a,d)=>a+Number(d.total||0),0),paid=payments.reduce((a,p)=>a+Number(p.amount||0),0),ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))],settled=ids.filter(id=>remaining(id)<=0).length,left=total-paid,pct=total?Math.min(100,Math.max(0,paid/total*100)):0;
  $('totalDebt').textContent=rupiah(total);$('totalPaid').textContent=rupiah(paid);$('heroRemaining').textContent=rupiah(left);$('countDebt').textContent=ids.length;$('settledCount').textContent=settled;$('paidPercent').textContent=Math.round(pct)+'%';$('paidBar').style.width=pct+'%';$('paidCaption').textContent=`${rupiah(paid)} dari ${rupiah(total)} sudah dibayar.`;
  renderSelects();renderDebts();renderPayments();renderPrices();renderRecent();
 }
-function renderSelects(){const brands=[...new Set(products.map(p=>p.brand))].sort(),opts=brands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');$('brand').innerHTML=opts;$('priceBrand').innerHTML=opts;renderProductOptions();const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))].filter(id=>remainingQty(id)>0).sort();$('payTransaction').innerHTML=ids.map(id=>{const d=debts.find(x=>x.transactionId===id);return `<option value="${safe(id)}">${safe(id)} · ${safe(d?.brand||'')} ${safe(d?.code||'')} · Sisa ${remainingQty(id)} voucher</option>`}).join('')||'<option value="">Tidak ada voucher yang belum dibayar</option>';updateBalance()}
-function renderProductOptions(){const list=products.filter(p=>p.brand===$('brand').value).sort((a,b)=>a.code.localeCompare(b.code,undefined,{numeric:true}));$('product').innerHTML=list.map(p=>`<option value="${p.id}">${safe(p.code)} — ${rupiah(priceFor(p))}</option>`).join('');syncPrice()}
-function syncPrice(){const p=products.find(x=>x.id===$('product').value);if(p)$('unitPrice').value=priceFor(p)||'';updateTotal()}
-function updateTotal(){$('lineTotal').value=rupiah((Number($('qty').value)||0)*(Number($('unitPrice').value)||0))}
+function renderSelects(){
+ const brands=Object.keys(initial).filter(b=>products.some(p=>p.brand===b));
+ const opts=brands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
+ $('brand').innerHTML=opts;$('priceBrand').innerHTML=opts;
+ const paymentBrands=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0).map(d=>d.brand).filter(Boolean))].sort();
+ const selectedBrand=$('payBrandFilter').value;
+ $('payBrandFilter').innerHTML='<option value="">Semua merek</option>'+paymentBrands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
+ if(paymentBrands.includes(selectedBrand))$('payBrandFilter').value=selectedBrand;
+ renderProductOptions();renderPaymentTransactionOptions();updateBalance();
+}
+function renderPaymentTransactionOptions(){
+ const brand=$('payBrandFilter').value,current=$('payTransaction').value;
+ const ids=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0&&(!brand||d.brand===brand)).map(d=>d.transactionId).filter(Boolean))].sort();
+ $('payTransaction').innerHTML=ids.map(id=>{const d=debts.find(x=>x.transactionId===id);return `<option value="${safe(id)}">${safe(id)} · ${safe(d?.brand||'')} ${safe(d?.code||'')} · ${remainingQty(id)} voucher tersisa</option>`}).join('')||'<option value="">Tidak ada voucher yang belum dibayar</option>';
+ if(ids.includes(current))$('payTransaction').value=current;
+}
+function renderProductOptions(){const order=initial[$('brand').value]||[];const list=products.filter(p=>p.brand===$('brand').value).sort((a,b)=>order.indexOf(a.code)-order.indexOf(b.code));$('product').innerHTML=list.map(p=>`<option value="${p.id}">${safe(p.code)} — ${rupiah(priceFor(p))}</option>`).join('');syncPrice()}
+function syncPrice(){updateTotal()}
+function updateTotal(){const p=products.find(x=>x.id===$('product').value);$('lineTotal').value=rupiah((Number($('qty').value)||0)*priceFor(p||{}))}
 function updateBalance(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id);if(!id||!d){$('selectedBalance').textContent='Pilih transaksi yang masih memiliki voucher belum dibayar.';$('payVoucherType').value='';$('payQty').max=1;$('payAmountPreview').value=rupiah(0);return}
  const left=remainingQty(id);$('payVoucherType').value=`${d.brand} ${d.code}`;$('payQty').max=String(left);if(Number($('payQty').value)>left)$('payQty').value=left||1;$('selectedBalance').textContent=`${id} · ${d.brand} ${d.code} · Sisa ${left} dari ${debtQty(id)} voucher · Sisa nilai ${rupiah(remaining(id))}`;updatePayPreview()}
 function updatePayPreview(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id),qty=Number($('payQty').value)||0;$('payAmountPreview').value=rupiah(qty*Number(d?.unitPrice||0))}
 function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code} ${d.voucherType||""}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}<div class="hint">${safe(d.voucherType||"-")}</div></td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
 function renderPayments(){const term=$('paymentSearch').value.toLowerCase(),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(p=>(p.transactionId||'').toLowerCase().includes(term)).map(p=>{const d=debts.find(x=>x.transactionId===p.transactionId);return `<tr><td>${safe(p.date)}</td><td><b>${safe(p.transactionId||'—')}</b></td><td>${safe(p.brand||d?.brand||'')} ${safe(p.code||d?.code||'')}<div class="hint">${safe(d?.voucherType||'-')}</div></td><td>${p.qty===undefined?'Riwayat lama':Number(p.qty)+' voucher'}</td><td>${rupiah(p.amount)}</td><td>${safe(p.note||'-')}</td><td><button class="small danger" data-delpay="${p.id}">Hapus</button></td></tr>`}).join('');$('paymentList').innerHTML=rows?`<table><thead><tr><th>Tanggal</th><th>ID transaksi</th><th>Voucher</th><th>Jumlah dibayar</th><th>Nilai</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada pembayaran.</div>'}
-function renderPrices(){const rows=products.slice().sort((a,b)=>(a.brand+a.code).localeCompare(b.brand+b.code)).map(p=>`<tr><td><b>${safe(p.brand)}</b></td><td>${safe(p.code)}</td><td><b>${rupiah(priceFor(p))}</b></td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table class="price-table"><thead><tr><th>Merek</th><th>Nominal</th><th>Harga</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
+function renderPrices(){const brandOrder=Object.keys(initial);const rows=products.slice().sort((a,b)=>brandOrder.indexOf(a.brand)-brandOrder.indexOf(b.brand)||(initial[a.brand]||[]).indexOf(a.code)-(initial[b.brand]||[]).indexOf(b.code)).map(p=>`<tr><td><b>${safe(p.brand)}</b></td><td>${safe(p.code)}</td><td><b>${rupiah(priceFor(p))}</b></td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table class="price-table"><thead><tr><th>Merek</th><th>Nominal</th><th>Harga</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
 function renderRecent(){const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6).map(d=>`<tr><td><b>${safe(d.transactionId)}</b></td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${rupiah(d.total)}</td><td><span class="pill ${remaining(d.transactionId)<=0?'green':'orange'}">${remaining(d.transactionId)<=0?'Lunas':'Berjalan'}</span></td></tr>`).join('');$('recentList').innerHTML=rows?`<div class="tablewrap"><table><thead><tr><th>ID</th><th>Voucher</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas.</div>'}
 function go(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['dashboard','transactions','payments','prices','reports'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;$('loginBtn').textContent='Memeriksa akun...';try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value)}catch(e){toast(e.code==='auth/invalid-credential'?'Email atau password salah.':e.code==='auth/too-many-requests'?'Terlalu banyak percobaan. Coba beberapa saat lagi.':'Login gagal: '+e.message)}finally{$('loginBtn').disabled=false;$('loginBtn').innerHTML='Masuk ke dashboard <span>→</span>'}};$('togglePassword').onclick=()=>{const p=$('password');p.type=p.type==='password'?'text':'password';$('togglePassword').textContent=p.type==='password'?'Lihat':'Tutup'};$('logoutBtn').onclick=()=>signOut(auth);
-$('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('unitPrice').oninput=updateTotal;$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
-$('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=Number($('unitPrice').value);if(!p||qty<1||unit<0)return toast('Periksa data voucher dan harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,voucherType:$('voucherType').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
+$('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('payBrandFilter').onchange=()=>{renderPaymentTransactionOptions();$('payQty').value=1;updateBalance()};$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
+$('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=priceFor(p||{});if(!p||qty<1||unit<=0)return toast('Pilih voucher dengan harga tersimpan lebih dari Rp0. Periksa Daftar Harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,voucherType:$('voucherType').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
 $('paymentForm').onsubmit=async e=>{e.preventDefault();const transactionId=$('payTransaction').value,d=debts.find(x=>x.transactionId===transactionId),qty=Number($('payQty').value),left=remainingQty(transactionId);if(!d||!Number.isInteger(qty)||qty<1)return toast('Pilih transaksi dan masukkan jumlah voucher yang benar.');if(qty>left)return toast(`Jumlah melebihi sisa voucher (${left}).`);const amount=qty*Number(d.unitPrice||0);await addDoc(col('payments'),{transactionId,date:$('payDate').value,brand:d.brand,code:d.code,qty,unitPrice:Number(d.unitPrice||0),amount,note:$('payNote').value.trim(),createdAt:serverTimestamp()});$('payQty').value=1;$('payNote').value='';await loadAll();toast(`${qty} voucher untuk ${transactionId} berhasil dicatat.`)};
 $('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId').value,brand=$('priceBrand').value,code=$('priceCode').value.trim();if(!brand||!code)return toast('Pilih merek dan isi nominal voucher.');const price=Math.max(0,Number($('priceValue').value)||0),data={brand,code,price,updatedAt:serverTimestamp()};const submit=$('priceForm').querySelector('button[type="submit"]');submit.disabled=true;try{if(id){await updateDoc(doc(db,'users',user.uid,'products',id),{...data,scratched:deleteField(),outside:deleteField()})}else{await addDoc(col('products'),{...data,createdAt:serverTimestamp()})}clearPrice();await loadAll();toast(id?'Perubahan harga berhasil disimpan.':'Harga baru berhasil ditambahkan.')}catch(err){toast('Gagal menyimpan harga: '+err.message)}finally{submit.disabled=false}};
 function clearPrice(){$('editProductId').value='';$('priceCode').value='';$('priceValue').value='';$('priceForm').classList.remove('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan harga'}
@@ -298,13 +337,20 @@ document.addEventListener('click',async e=>{
    await setDoc(doc(db,'publicPreviews',token),payload);
    const url=new URL('/',location.origin);url.searchParams.set('p',token);
    const shortUrl=url.toString();
-   let copied=false;
-   try{await navigator.clipboard.writeText(shortUrl);copied=true}catch(err){}
    if(navigator.share){
-    try{await navigator.share({title:'Daftar Semua Utang Voucher',text:'Preview seluruh daftar utang voucher: '+shortUrl,url:shortUrl});toast('Link preview siap dibagikan.')}
-    catch(err){if(err.name==='AbortError'){if(copied)toast('Link preview sudah disalin.')}else if(copied)toast('Link preview sudah disalin.');else prompt('Salin link preview:',shortUrl)}
-   }else if(copied){toast('Link preview berhasil disalin.')}
-   else{prompt('Salin link preview:',shortUrl)}
+    try{
+     await navigator.share({title:'Preview seluruh daftar utang voucher',url:shortUrl});
+     toast('Link preview berhasil dibagikan.');
+    }catch(err){
+     if(err.name!=='AbortError'){
+      try{await navigator.clipboard.writeText(shortUrl);toast('Link preview berhasil disalin.')}
+      catch(copyErr){prompt('Salin link preview:',shortUrl)}
+     }
+    }
+   }else{
+    try{await navigator.clipboard.writeText(shortUrl);toast('Link preview berhasil disalin.')}
+    catch(err){prompt('Salin link preview:',shortUrl)}
+   }
   }catch(err){toast('Gagal membuat link preview. Periksa koneksi dan Firestore Rules: '+err.message);console.error(err)}
   return;
  }
