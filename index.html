@@ -159,7 +159,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
  <div class="tabs"><button class="active" data-tab="dashboard">Dashboard</button><button data-tab="transactions">Transaksi</button><button data-tab="payments">Pembayaran</button><button data-tab="prices">Daftar harga</button><button data-tab="reports">Laporan & backup</button></div>
  <section id="tab-dashboard">
   <div class="grid">
-   <div class="card"><div class="head"><h2>Aktivitas terbaru</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan semua utang</button><button class="small secondary" data-goto="transactions">Lihat semua</button></div></div><div id="recentList"></div></div>
+   <div class="card"><div class="head"><h2>Aktivitas terbaru</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan preview semua utang</button><button class="small secondary" data-goto="transactions">Lihat semua</button></div></div><div id="recentList"></div></div>
    <div class="card"><div class="head"><h2>Ringkasan pembayaran</h2></div><div class="muted">Persentase utang yang sudah dibayar</div><h2 id="paidPercent" style="font-size:30px;margin:9px 0 0">0%</h2><div class="progress"><span id="paidBar" style="width:0%"></span></div><p class="hint" id="paidCaption">Belum ada transaksi.</p><div class="quick"><button data-goto="transactions"><b>＋ Transaksi baru</b><span>Catat voucher</span></button><button data-goto="payments"><b>↗ Pembayaran</b><span>Input cicilan</span></button><button data-goto="prices"><b>▤ Atur harga</b><span>Kelola nominal</span></button></div></div>
   </div>
  </section>
@@ -179,7 +179,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
     <div class="field full"><button type="submit">Simpan transaksi</button></div>
    </form>
   </div>
-  <div class="card" style="margin-top:14px"><div class="head"><h2>Semua transaksi</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan semua utang</button></div><div class="toolbar"><input id="debtSearch" placeholder="Cari ID / merek / nominal"><select id="statusFilter" style="max-width:150px"><option value="all">Semua status</option><option value="open">Belum lunas</option><option value="paid">Lunas</option></select></div></div><div id="debtList" class="tablewrap"></div></div>
+  <div class="card" style="margin-top:14px"><div class="head"><h2>Semua transaksi</h2><div class="actions"><button class="small secondary" data-copyall="1">Bagikan preview semua utang</button></div><div class="toolbar"><input id="debtSearch" placeholder="Cari ID / merek / nominal"><select id="statusFilter" style="max-width:150px"><option value="all">Semua status</option><option value="open">Belum lunas</option><option value="paid">Lunas</option></select></div></div><div id="debtList" class="tablewrap"></div></div>
  </section>
  <section id="tab-payments" class="hidden">
   <div class="card"><div class="head"><h2>Catat pembayaran</h2></div><form id="paymentForm" class="grid">
@@ -269,7 +269,7 @@ function updateTotal(){$('lineTotal').value=rupiah((Number($('qty').value)||0)*(
 function updateBalance(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id);if(!id||!d){$('selectedBalance').textContent='Pilih transaksi yang masih memiliki voucher belum dibayar.';$('payVoucherType').value='';$('payQty').max=1;$('payAmountPreview').value=rupiah(0);return}
  const left=remainingQty(id);$('payVoucherType').value=`${d.brand} ${d.code}`;$('payQty').max=String(left);if(Number($('payQty').value)>left)$('payQty').value=left||1;$('selectedBalance').textContent=`${id} · ${d.brand} ${d.code} · Sisa ${left} dari ${debtQty(id)} voucher · Sisa nilai ${rupiah(remaining(id))}`;updatePayPreview()}
 function updatePayPreview(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id),qty=Number($('payQty').value)||0;$('payAmountPreview').value=rupiah(qty*Number(d?.unitPrice||0))}
-function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code} ${d.voucherType||""}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}<div class="hint">${safe(d.voucherType||"-")}</div></td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small secondary" data-copyreceipt="${d.id}">Bagikan Preview</button><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
+function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code} ${d.voucherType||""}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}<div class="hint">${safe(d.voucherType||"-")}</div></td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
 function renderPayments(){const term=$('paymentSearch').value.toLowerCase(),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(p=>(p.transactionId||'').toLowerCase().includes(term)).map(p=>{const d=debts.find(x=>x.transactionId===p.transactionId);return `<tr><td>${safe(p.date)}</td><td><b>${safe(p.transactionId||'—')}</b></td><td>${safe(p.brand||d?.brand||'')} ${safe(p.code||d?.code||'')}<div class="hint">${safe(d?.voucherType||'-')}</div></td><td>${p.qty===undefined?'Riwayat lama':Number(p.qty)+' voucher'}</td><td>${rupiah(p.amount)}</td><td>${safe(p.note||'-')}</td><td><button class="small danger" data-delpay="${p.id}">Hapus</button></td></tr>`}).join('');$('paymentList').innerHTML=rows?`<table><thead><tr><th>Tanggal</th><th>ID transaksi</th><th>Voucher</th><th>Jumlah dibayar</th><th>Nilai</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada pembayaran.</div>'}
 function renderPrices(){const rows=products.slice().sort((a,b)=>(a.brand+a.code).localeCompare(b.brand+b.code)).map(p=>`<tr><td><b>${safe(p.brand)}</b></td><td>${safe(p.code)}</td><td><b>${rupiah(priceFor(p))}</b></td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table class="price-table"><thead><tr><th>Merek</th><th>Nominal</th><th>Harga</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
 function renderRecent(){const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6).map(d=>`<tr><td><b>${safe(d.transactionId)}</b></td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${rupiah(d.total)}</td><td><span class="pill ${remaining(d.transactionId)<=0?'green':'orange'}">${remaining(d.transactionId)<=0?'Lunas':'Berjalan'}</span></td></tr>`).join('');$('recentList').innerHTML=rows?`<div class="tablewrap"><table><thead><tr><th>ID</th><th>Voucher</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas.</div>'}
@@ -282,7 +282,7 @@ $('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId')
 function clearPrice(){$('editProductId').value='';$('priceCode').value='';$('priceValue').value='';$('priceForm').classList.remove('price-editing');$('priceForm').querySelector('button[type=submit]').textContent='Simpan harga'}
 $('cancelEdit').onclick=clearPrice;
 document.addEventListener('click',async e=>{
- const t=e.target.closest('[data-tab],[data-goto],[data-copyall],[data-copyreceipt],[data-deldebt],[data-delpay],[data-edit],[data-delprod]');
+ const t=e.target.closest('[data-tab],[data-goto],[data-copyall],[data-deldebt],[data-delpay],[data-edit],[data-delprod]');
  if(!t)return;
  if(t.dataset.tab){go(t.dataset.tab);return}
  if(t.dataset.goto){go(t.dataset.goto);return}
@@ -291,25 +291,21 @@ document.addEventListener('click',async e=>{
   const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
   if(!items.length){toast('Belum ada transaksi untuk dibagikan.');return}
   const payload={kind:'all-debts',createdAt:new Date().toISOString(),items,total:items.reduce((n,x)=>n+x.total,0),paid:items.reduce((n,x)=>n+x.paid,0),remaining:items.reduce((n,x)=>n+x.remaining,0)};
-  const token=Array.from(crypto.getRandomValues(new Uint8Array(6)),b=>'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[b%62]).join('');
+  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes=crypto.getRandomValues(new Uint8Array(10));
+  const token=Array.from(bytes,b=>alphabet[b%alphabet.length]).join('');
   try{
    await setDoc(doc(db,'publicPreviews',token),payload);
-   const url=location.origin+location.pathname+'?p='+token;
-   if(navigator.share){try{await navigator.share({title:'Daftar Semua Utang Voucher',text:'Preview seluruh daftar utang voucher:',url})}catch(err){if(err.name!=='AbortError')throw err}}
-   else{await navigator.clipboard.writeText(url);toast('Link pendek semua utang berhasil disalin.')}
-   if(!navigator.share)toast('Link pendek semua utang berhasil disalin.');
-  }catch(err){toast('Gagal membuat link preview: '+err.message);console.error(err)}
-  return;
- }
- if(t.dataset.copyreceipt){
-  const d=debts.find(x=>x.id===t.dataset.copyreceipt);
-  if(d){
-   const payload={id:d.transactionId,date:d.date,brand:d.brand,code:d.code,qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0),paid:paidTotal(d.transactionId),remaining:remaining(d.transactionId),status:remaining(d.transactionId)<=0?'LUNAS':'BELUM LUNAS'};
-   const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(payload)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-   const url=location.origin+location.pathname+'?preview='+encoded;
-   try{if(navigator.share){await navigator.share({title:'Preview Utang Voucher '+d.transactionId,text:'Lihat rincian voucher:',url})}else{await navigator.clipboard.writeText(url);toast('Link preview berhasil disalin. Bagikan ke teman.')}}
-   catch(err){if(err.name!=='AbortError'){try{await navigator.clipboard.writeText(url);toast('Link preview berhasil disalin.')}catch(e){prompt('Salin link preview ini:',url)}}}
-  }
+   const url=new URL('/',location.origin);url.searchParams.set('p',token);
+   const shortUrl=url.toString();
+   let copied=false;
+   try{await navigator.clipboard.writeText(shortUrl);copied=true}catch(err){}
+   if(navigator.share){
+    try{await navigator.share({title:'Daftar Semua Utang Voucher',text:'Preview seluruh daftar utang voucher: '+shortUrl,url:shortUrl});toast('Link preview siap dibagikan.')}
+    catch(err){if(err.name==='AbortError'){if(copied)toast('Link preview sudah disalin.')}else if(copied)toast('Link preview sudah disalin.');else prompt('Salin link preview:',shortUrl)}
+   }else if(copied){toast('Link preview berhasil disalin.')}
+   else{prompt('Salin link preview:',shortUrl)}
+  }catch(err){toast('Gagal membuat link preview. Periksa koneksi dan Firestore Rules: '+err.message);console.error(err)}
   return;
  }
  if(t.dataset.edit){
@@ -335,10 +331,11 @@ async function showPublicPreview(){
  $('auth').classList.add('hidden');$('app').classList.add('hidden');$('publicPreview').classList.remove('hidden');
  $('publicDetails').innerHTML='<div class="preview-loading"><span class="spinner"></span><b>Memuat daftar utang...</b></div>';
  try{
+  if(!/^[A-Za-z0-9]{8,16}$/.test(token))throw Error('Kode link tidak valid. Minta admin membuat link preview baru.');
   const snap=await getDoc(doc(db,'publicPreviews',token));
-  if(!snap.exists())throw Error('Link preview tidak ditemukan atau sudah tidak tersedia.');
+  if(!snap.exists())throw Error('Data preview tidak ditemukan. Link mungkin sudah tidak dibuat atau sudah terhapus. Minta admin membagikan link baru.');
   const data=snap.data();
-  if(!data||!Array.isArray(data.items))throw Error('Data preview tidak valid.');
+  if(!data||!Array.isArray(data.items))throw Error('Format preview tidak valid. Minta admin membuat link baru.');
   const total=Number(data.total)||0,paid=Number(data.paid)||0,left=Number(data.remaining)||0;
   $('publicRemaining').textContent=rupiah(left);$('publicCount').textContent=data.items.length;
   $('publicDebt').textContent=rupiah(total);$('publicPaid').textContent=rupiah(paid);
@@ -351,10 +348,27 @@ async function showPublicPreview(){
  }catch(e){$('publicDetails').innerHTML=`<div class="preview-error"><b>Preview tidak dapat dibuka</b><span>${safe(e.message)}</span></div>`}
  return true;
 }
+
 try{
  const fb=initializeApp(firebaseConfig);auth=getAuth(fb);db=getFirestore(fb);
  if(new URLSearchParams(location.search).has('p')){await showPublicPreview()}
- else{onAuthStateChanged(auth,async u=>{user=u;$('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);if(u){try{await loadAll();await seed();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}})}
+ else{
+  const awayKey='utangVoucherAwayAt';
+  let awayTimer=null;
+  const logoutForAway=async()=>{if(auth.currentUser){try{sessionStorage.removeItem(awayKey);await signOut(auth)}catch(e){console.error('Auto logout:',e)}}};
+  const checkAway=()=>{const stamp=Number(sessionStorage.getItem(awayKey)||0);if(stamp&&Date.now()-stamp>=10000){logoutForAway();return true}return false};
+  const markAway=()=>{sessionStorage.setItem(awayKey,String(Date.now()));clearTimeout(awayTimer);awayTimer=setTimeout(logoutForAway,10000)};
+  const resumeCheck=()=>{if(checkAway())return;clearTimeout(awayTimer);sessionStorage.removeItem(awayKey)};
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)markAway();else resumeCheck()});
+  window.addEventListener('pagehide',markAway);
+  window.addEventListener('pageshow',resumeCheck);
+  onAuthStateChanged(auth,async u=>{
+   user=u;
+   if(u&&checkAway()){return}
+   $('auth').classList.toggle('hidden',!!u);$('app').classList.toggle('hidden',!u);
+   if(u){try{await loadAll();await seed();await loadAll()}catch(e){toast('Database: '+e.message);console.error(e)}}
+  });
+ }
 }catch(e){toast('Firebase: '+e.message);console.error(e)}
 
 </script>
