@@ -185,6 +185,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
  </section>
  <section id="tab-payments" class="hidden">
   <div class="card"><div class="head"><h2>Catat pembayaran</h2></div><form id="paymentForm" class="grid">
+   <div class="field"><label>Jenis voucher</label><select id="payTypeFilter"><option value="Tergosok">Tergosok</option><option value="Di luar">Di luar</option></select></div>
    <div class="field"><label>Merek voucher</label><select id="payBrandFilter"><option value="">Semua merek</option></select></div>
    <div class="field full"><label>Pilih transaksi / voucher</label><select id="payTransaction" required></select></div>
    <div class="field"><label>Tanggal pembayaran</label><input id="payDate" type="date" required></div>
@@ -207,7 +208,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card"><div class="head"><h2>Pemulihan data</h2></div><p class="hint">Impor backup JSON yang sebelumnya dibuat dari website ini. Data akan ditambahkan, bukan menimpa data lama.</p><input id="importFile" type="file" accept="application/json"><button id="importJson" class="secondary" style="margin-top:10px">Impor backup</button></div></div>
   <div class="notice" style="margin-top:14px">Data utama tetap tersimpan di Firebase. File backup hanya salinan tambahan. Simpan file backup di tempat yang aman.</div>
  </section>
- <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V23</p>
+ <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V25</p>
 </main></div>
 <div id="publicPreview" class="hidden">
  <header class="top"><div class="topin"><div class="brand">UTANG VOUCHER<span>PREVIEW DAFTAR UTANG</span></div><span class="pill">HANYA LIHAT</span></div></header>
@@ -223,7 +224,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
    <div class="head"><h2>Semua transaksi voucher</h2><span class="pill">HANYA LIHAT</span></div>
    <div id="publicDetails" class="tablewrap"></div>
   </section>
-  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V23</p>
+  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V25</p>
  </main>
 </div>
 <div id="toast" class="toast"></div>
@@ -254,11 +255,20 @@ function voucherSummary(transactions,paymentRecords=[]){
   const qty=Number(pay.qty)||0,amount=Number(pay.amount)||qty*(Number(pay.unitPrice)||0);
   if(qty>0||amount>0)add(paidGroups,type,brand,code,qty,amount,pay.date||'');
  }
+ // Kurangi voucher yang sudah dibayar dari daftar utama; sisakan hanya saldo yang belum dibayar.
+ const remainingGroups={'Tergosok':new Map(),'Di luar':new Map()};
+ for(const type of ['Tergosok','Di luar']){
+  for(const [key,v] of groups[type]){
+   const paid=paidGroups[type].get(key)||{qty:0,total:0};
+   const qty=Math.max(0,v.qty-paid.qty),amount=Math.max(0,v.total-paid.total);
+   if(qty>0||amount>0)remainingGroups[type].set(key,{...v,qty,total:amount});
+  }
+ }
  const lines=[];
  for(const type of ['Tergosok','Di luar']){
   lines.push(type==='Tergosok'?'*VC YANG TERGOSOK:*':'*VC YANG DI LUAR:*','');
   const byBrand=new Map();
-  for(const v of groups[type].values()){if(!byBrand.has(v.brand))byBrand.set(v.brand,[]);byBrand.get(v.brand).push(v)}
+  for(const v of remainingGroups[type].values()){if(!byBrand.has(v.brand))byBrand.set(v.brand,[]);byBrand.get(v.brand).push(v)}
   for(const [brand,values] of byBrand){lines.push('-'+brand);for(const v of values)lines.push(`${v.code} = ${v.qty} , ${compactRupiah(v.total)}`);lines.push('')}
  }
  const paidItems=[...paidGroups['Tergosok'].values(),...paidGroups['Di luar'].values()].filter(v=>v.qty>0||v.total>0);
@@ -274,7 +284,8 @@ function voucherSummary(transactions,paymentRecords=[]){
  }
  const sumType=type=>[...groups[type].values()].reduce((sum,v)=>sum+v.total,0);
  const scratched=sumType('Tergosok'),outside=sumType('Di luar');
- lines.push(`TOTAL VC ALL : ${compactRupiah(scratched+outside)}`,`-Tergosok : ${compactRupiah(scratched)}`,`-Diluar : ${compactRupiah(outside)}`);
+ const paidTotal=paidItems.reduce((sum,v)=>sum+v.total,0);
+ lines.push(`TOTAL VC ALL : ${compactRupiah(scratched+outside)}`,`-Tergosok : ${compactRupiah(scratched)}`,`-Di luar : ${compactRupiah(outside)}`,`-Total terbayar : ${compactRupiah(paidTotal)}`,`-Sisa utang : ${compactRupiah(Math.max(0,scratched+outside-paidTotal))}`);
  return lines.join('\n');
 }
 const initial={"TSEL":["5/1","7/2","7/3","7/5","7/7","11/7","10/28"],"AXIS":["10/1","6,5/3","6/5","10/5","14/3","17/5","25/5","12/14","27/14","7/28","10/28","15/28","30/28","45/28"],"XL":["4/3","7,5/7","15/7","7/28","15/28","28/28"],"IM3":["6/2","6/5","10/5","13/7","7/28","15/28"],"TRI":["10/1","11/3","10/5","12/5","15/7","8/28","16/28"],"SM":["6/3","6/7"],"B.YU":["12/2","8/3","10/5","10/7","9/14"],"Kabel & SP":["Kepala","Andro","iPhone","Type C","Axis","Tsel","Xl"]};
@@ -343,15 +354,15 @@ function renderSelects(){
  const brands=Object.keys(initial).filter(b=>products.some(p=>p.brand===b));
  const opts=brands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
  $('brand').innerHTML=opts;$('priceBrand').innerHTML=opts;
- const brandOrder=Object.keys(initial);const paymentBrands=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0).map(d=>d.brand).filter(Boolean))].sort((a,b)=>brandOrder.indexOf(a)-brandOrder.indexOf(b));
+ const brandOrder=Object.keys(initial);const activeType=$('payTypeFilter')?.value||'Tergosok';const paymentBrands=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0&&((d.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok')===activeType).map(d=>d.brand).filter(Boolean))].sort((a,b)=>brandOrder.indexOf(a)-brandOrder.indexOf(b));
  const selectedBrand=$('payBrandFilter').value;
  $('payBrandFilter').innerHTML='<option value="">Semua merek</option>'+paymentBrands.map(b=>`<option value="${safe(b)}">${safe(b)}</option>`).join('');
  if(paymentBrands.includes(selectedBrand))$('payBrandFilter').value=selectedBrand;
  renderProductOptions();renderPaymentTransactionOptions();updateBalance();
 }
 function renderPaymentTransactionOptions(){
- const brand=$('payBrandFilter').value,current=$('payTransaction').value;
- const ids=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0&&(!brand||d.brand===brand)).map(d=>d.transactionId).filter(Boolean))].sort();
+ const brand=$('payBrandFilter').value,current=$('payTransaction').value,type=$('payTypeFilter')?.value||'Tergosok';
+ const ids=[...new Set(debts.filter(d=>remainingQty(d.transactionId)>0&&((d.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok')===type&&(!brand||d.brand===brand)).map(d=>d.transactionId).filter(Boolean))].sort();
  $('payTransaction').innerHTML=ids.map(id=>{const d=debts.find(x=>x.transactionId===id);return `<option value="${safe(id)}">${safe(id)} · ${safe(d?.brand||'')} ${safe(d?.code||'')} · ${remainingQty(id)} voucher tersisa</option>`}).join('')||'<option value="">Tidak ada voucher yang belum dibayar</option>';
  if(ids.includes(current))$('payTransaction').value=current;
 }
@@ -367,7 +378,7 @@ function renderPrices(){const brandOrder=Object.keys(initial);const rows=product
 function renderRecent(){const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6).map(d=>`<tr><td><b>${safe(d.transactionId)}</b></td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${rupiah(d.total)}</td><td><span class="pill ${remaining(d.transactionId)<=0?'green':'orange'}">${remaining(d.transactionId)<=0?'Lunas':'Berjalan'}</span></td></tr>`).join('');$('recentList').innerHTML=rows?`<div class="tablewrap"><table><thead><tr><th>ID</th><th>Voucher</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas.</div>'}
 function go(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['dashboard','transactions','payments','prices','reports'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;$('loginBtn').textContent='Memeriksa akun...';try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value)}catch(e){toast(e.code==='auth/invalid-credential'?'Email atau password salah.':e.code==='auth/too-many-requests'?'Terlalu banyak percobaan. Coba beberapa saat lagi.':'Login gagal: '+e.message)}finally{$('loginBtn').disabled=false;$('loginBtn').innerHTML='Masuk ke dashboard <span>→</span>'}};$('togglePassword').onclick=()=>{const p=$('password');p.type=p.type==='password'?'text':'password';$('togglePassword').textContent=p.type==='password'?'Lihat':'Tutup'};$('logoutBtn').onclick=()=>signOut(auth);
-$('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('payBrandFilter').onchange=()=>{renderPaymentTransactionOptions();$('payQty').value=1;updateBalance()};$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
+$('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('payTypeFilter').onchange=()=>{$('payBrandFilter').value='';$('payQty').value=1;renderSelects()};$('payBrandFilter').onchange=()=>{renderPaymentTransactionOptions();$('payQty').value=1;updateBalance()};$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
 $('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=priceFor(p||{});if(!p||qty<1||unit<=0)return toast('Pilih voucher dengan harga tersimpan lebih dari Rp0. Periksa Daftar Harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,voucherType:$('voucherType').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
 $('paymentForm').onsubmit=async e=>{e.preventDefault();const transactionId=$('payTransaction').value,d=debts.find(x=>x.transactionId===transactionId),qty=Number($('payQty').value),left=remainingQty(transactionId);if(!d||!Number.isInteger(qty)||qty<1)return toast('Pilih transaksi dan masukkan jumlah voucher yang benar.');if(qty>left)return toast(`Jumlah melebihi sisa voucher (${left}).`);const amount=qty*Number(d.unitPrice||0);await addDoc(col('payments'),{transactionId,date:$('payDate').value,brand:d.brand,code:d.code,qty,unitPrice:Number(d.unitPrice||0),amount,note:$('payNote').value.trim(),createdAt:serverTimestamp()});$('payQty').value=1;$('payNote').value='';await loadAll();toast(`${qty} voucher untuk ${transactionId} berhasil dicatat.`)};
 $('priceForm').onsubmit=async e=>{e.preventDefault();const id=$('editProductId').value,brand=$('priceBrand').value,code=$('priceCode').value.trim();if(!brand||!code)return toast('Pilih merek dan isi nominal voucher.');const price=Math.max(0,Number($('priceValue').value)||0),data={brand,code,price,updatedAt:serverTimestamp()};const submit=$('priceForm').querySelector('button[type="submit"]');submit.disabled=true;try{if(id){await updateDoc(doc(db,'users',user.uid,'products',id),{...data,scratched:deleteField(),outside:deleteField()})}else{await addDoc(col('products'),{...data,createdAt:serverTimestamp()})}clearPrice();await loadAll();toast(id?'Perubahan harga berhasil disimpan.':'Harga baru berhasil ditambahkan.')}catch(err){toast('Gagal menyimpan harga: '+err.message)}finally{submit.disabled=false}};
