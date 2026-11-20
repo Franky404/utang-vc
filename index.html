@@ -133,6 +133,14 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
 
 .share-actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:520px){.share-actions button{flex:1 1 100%}}
+
+.count-brand{border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.count-brand h3{margin:0 0 10px;font-size:16px}
+.count-type{margin-top:12px}
+.count-type h4{font-size:12px;color:var(--muted);margin:0 0 7px;letter-spacing:.5px}
+.count-list{display:flex;flex-direction:column;gap:7px}
+.count-row{display:flex;align-items:center;justify-content:space-between;background:var(--soft);padding:10px 12px;border-radius:9px;font-size:14px}
+.count-row b{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -159,7 +167,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card stat"><small>Total dibayar</small><strong class="money" id="totalPaid">Rp0</strong><div class="sub">Akumulasi pembayaran</div></div>
   <div class="card stat"><small>Transaksi lunas</small><strong id="settledCount">0</strong><div class="sub">Sudah diselesaikan</div></div>
  </div>
- <div class="tabs"><button class="active" data-tab="dashboard">Dashboard</button><button data-tab="transactions">Transaksi</button><button data-tab="payments">Pembayaran</button><button data-tab="prices">Daftar harga</button><button data-tab="reports">Laporan & backup</button></div>
+ <div class="tabs"><button class="active" data-tab="dashboard">Dashboard</button><button data-tab="transactions">Transaksi</button><button data-tab="payments">Pembayaran</button><button data-tab="counting">Hitung Voucher</button><button data-tab="prices">Daftar harga</button><button data-tab="reports">Laporan & backup</button></div>
  <section id="tab-dashboard">
   <div class="grid">
    <div class="card"><div class="head"><h2>Aktivitas terbaru</h2><div class="actions"><button class="small secondary" data-copyall="1">Salin link preview</button><button class="small secondary" data-copytext="1">Kirim teks utang ke WhatsApp</button><button class="small secondary" data-goto="transactions">Lihat semua</button></div></div><div id="recentList"></div></div>
@@ -197,6 +205,14 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   </form><p class="hint" id="selectedBalance"></p></div>
   <div class="card" style="margin-top:14px"><div class="head"><h2>Riwayat pembayaran</h2><input id="paymentSearch" placeholder="Cari ID transaksi" style="max-width:230px"></div><div id="paymentList" class="tablewrap"></div></div>
  </section>
+ <section id="tab-counting" class="hidden">
+  <div class="card">
+   <div class="head"><h2>Hitung stok voucher</h2><span class="pill">Hitung fisik</span></div>
+   <p class="hint">Daftar ini mengambil jumlah voucher yang masih belum lunas dari transaksi. Setiap transaksi atau pembayaran baru akan memperbarui hitungan otomatis.</p>
+   <div id="voucherCountList"></div>
+   <div class="actions" style="margin-top:14px"><button type="button" class="secondary" id="clearVoucherCount">Info hitungan</button></div>
+  </div>
+ </section>
  <section id="tab-prices" class="hidden">
   <div class="card"><div class="head"><h2>Kelola harga voucher</h2></div><form id="priceForm" class="grid">
    <input id="editProductId" type="hidden"><div class="field"><label>Merek</label><select id="priceBrand"></select></div><div class="field"><label>Nominal / kode</label><input id="priceCode" required placeholder="Contoh: 5/1"></div><div class="field"><label>Harga (Rp)</label><input id="priceValue" type="number" min="0" step="1" required placeholder="Masukkan harga voucher"></div>
@@ -208,7 +224,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card"><div class="head"><h2>Pemulihan data</h2></div><p class="hint">Impor backup JSON yang sebelumnya dibuat dari website ini. Data akan ditambahkan, bukan menimpa data lama.</p><input id="importFile" type="file" accept="application/json"><button id="importJson" class="secondary" style="margin-top:10px">Impor backup</button></div></div>
   <div class="notice" style="margin-top:14px">Data utama tetap tersimpan di Firebase. File backup hanya salinan tambahan. Simpan file backup di tempat yang aman.</div>
  </section>
- <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V25</p>
+ <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V27</p>
 </main></div>
 <div id="publicPreview" class="hidden">
  <header class="top"><div class="topin"><div class="brand">UTANG VOUCHER<span>PREVIEW DAFTAR UTANG</span></div><span class="pill">HANYA LIHAT</span></div></header>
@@ -224,7 +240,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
    <div class="head"><h2>Semua transaksi voucher</h2><span class="pill">HANYA LIHAT</span></div>
    <div id="publicDetails" class="tablewrap"></div>
   </section>
-  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V25</p>
+  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V27</p>
  </main>
 </div>
 <div id="toast" class="toast"></div>
@@ -348,7 +364,7 @@ function priceFor(p){return Number(p.price??(Number(p.scratched)||Number(p.outsi
 function renderAll(){
  const total=debts.reduce((a,d)=>a+Number(d.total||0),0),paid=payments.reduce((a,p)=>a+Number(p.amount||0),0),ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))],settled=ids.filter(id=>remaining(id)<=0).length,left=total-paid,pct=total?Math.min(100,Math.max(0,paid/total*100)):0;
  $('totalDebt').textContent=rupiah(total);$('totalPaid').textContent=rupiah(paid);$('heroRemaining').textContent=rupiah(left);$('countDebt').textContent=ids.length;$('settledCount').textContent=settled;$('paidPercent').textContent=Math.round(pct)+'%';$('paidBar').style.width=pct+'%';$('paidCaption').textContent=`${rupiah(paid)} dari ${rupiah(total)} sudah dibayar.`;
- renderSelects();renderDebts();renderPayments();renderPrices();renderRecent();
+ renderSelects();renderDebts();renderPayments();renderPrices();renderRecent();renderVoucherCount();
 }
 function renderSelects(){
  const brands=Object.keys(initial).filter(b=>products.some(p=>p.brand===b));
@@ -374,9 +390,38 @@ function updateBalance(){const id=$('payTransaction').value,d=debts.find(x=>x.tr
 function updatePayPreview(){const id=$('payTransaction').value,d=debts.find(x=>x.transactionId===id),qty=Number($('payQty').value)||0;$('payAmountPreview').value=rupiah(qty*Number(d?.unitPrice||0))}
 function renderDebts(){const term=$('debtSearch').value.toLowerCase(),filter=$('statusFilter').value;const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(d=>{const rem=remaining(d.transactionId);return(`${d.transactionId} ${d.brand} ${d.code} ${d.voucherType||""}`).toLowerCase().includes(term)&&(filter==='all'||(filter==='paid'?rem<=0:rem>0))}).map(d=>{const rem=remaining(d.transactionId);return`<tr><td><b>${safe(d.transactionId||'—')}</b></td><td>${safe(d.date)}</td><td>${safe(d.brand)} ${safe(d.code)}<div class="hint">${safe(d.voucherType||"-")}</div></td><td>${d.qty}</td><td>${rupiah(d.total)}</td><td>${rupiah(rem)}</td><td><span class="pill ${rem<=0?'green':'orange'}">${rem<=0?'Lunas':'Berjalan'}</span></td><td><div class="actions"><button class="small danger" data-deldebt="${d.id}">Hapus</button></div></td></tr>`}).join('');$('debtList').innerHTML=rows?`<table><thead><tr><th>ID transaksi</th><th>Tanggal</th><th>Voucher</th><th>Qty</th><th>Total</th><th>Sisa ID</th><th>Status</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada transaksi yang cocok.</div>'}
 function renderPayments(){const term=$('paymentSearch').value.toLowerCase(),rows=payments.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).filter(p=>(p.transactionId||'').toLowerCase().includes(term)).map(p=>{const d=debts.find(x=>x.transactionId===p.transactionId);return `<tr><td>${safe(p.date)}</td><td><b>${safe(p.transactionId||'—')}</b></td><td>${safe(p.brand||d?.brand||'')} ${safe(p.code||d?.code||'')}<div class="hint">${safe(d?.voucherType||'-')}</div></td><td>${p.qty===undefined?'Riwayat lama':Number(p.qty)+' voucher'}</td><td>${rupiah(p.amount)}</td><td>${safe(p.note||'-')}</td><td><button class="small danger" data-delpay="${p.id}">Hapus</button></td></tr>`}).join('');$('paymentList').innerHTML=rows?`<table><thead><tr><th>Tanggal</th><th>ID transaksi</th><th>Voucher</th><th>Jumlah dibayar</th><th>Nilai</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada pembayaran.</div>'}
+const countBrandOrder=['Kabel & SP','SM','B.YU','TRI','XL','IM3','TSEL','AXIS'];
+function renderVoucherCount(){
+ const grouped={};
+ for(const d of debts){
+  const qty=remainingQty(d.transactionId);
+  if(qty<=0)continue;
+  const brand=String(d.brand||'').trim(),code=String(d.code||'').trim();
+  const type=String(d.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok';
+  if(!brand||!code)continue;
+  const key=brand+'|'+type+'|'+code;
+  grouped[key]=(grouped[key]||0)+qty;
+ }
+ const brands=countBrandOrder.filter(b=>Object.keys(grouped).some(k=>k.startsWith(b+'|')));
+ if(!brands.length){
+  $('voucherCountList').innerHTML='<div class="empty">Belum ada voucher yang masih tercatat sebagai utang. Transaksi baru yang belum lunas akan muncul otomatis di sini.</div>';
+  return;
+ }
+ $('voucherCountList').innerHTML=brands.map((brand,i)=>{
+  const sections=['Di luar','Tergosok'].map(type=>{
+   const rows=Object.entries(grouped).filter(([key,qty])=>key.startsWith(brand+'|'+type+'|')&&qty>0)
+    .map(([key,qty])=>({code:key.split('|').slice(2).join('|'),qty}))
+    .sort((a,b)=>{const order=initial[brand]||[];return order.indexOf(a.code)-order.indexOf(b.code)});
+   if(!rows.length)return '';
+   return `<div class="count-type"><h4>${type==='Di luar'?'DI LUAR':'DI TERGOSOK'}</h4><div class="count-list">${rows.map(r=>`<div class="count-row"><span>${safe(r.code)}</span><b>${r.qty}</b></div>`).join('')}</div></div>`;
+  }).join('');
+  return `<div class="count-brand"><h3>${i+1}. ${safe(brand)}</h3>${sections}</div>`;
+ }).join('');
+}
+$('clearVoucherCount').onclick=()=>toast('Hitung Voucher mengikuti transaksi aktif dan diperbarui otomatis. Untuk mengubah jumlah, ubah transaksi atau catatan pembayaran.');
 function renderPrices(){const brandOrder=Object.keys(initial);const rows=products.slice().sort((a,b)=>brandOrder.indexOf(a.brand)-brandOrder.indexOf(b.brand)||(initial[a.brand]||[]).indexOf(a.code)-(initial[b.brand]||[]).indexOf(b.code)).map(p=>`<tr><td><b>${safe(p.brand)}</b></td><td>${safe(p.code)}</td><td><b>${rupiah(priceFor(p))}</b></td><td><div class="actions"><button class="small secondary" data-edit="${p.id}">Edit</button><button class="small danger" data-delprod="${p.id}">Hapus</button></div></td></tr>`).join('');$('priceList').innerHTML=rows?`<table class="price-table"><thead><tr><th>Merek</th><th>Nominal</th><th>Harga</th><th></th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Belum ada harga.</div>'}
 function renderRecent(){const rows=debts.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,6).map(d=>`<tr><td><b>${safe(d.transactionId)}</b></td><td>${safe(d.brand)} ${safe(d.code)}</td><td>${rupiah(d.total)}</td><td><span class="pill ${remaining(d.transactionId)<=0?'green':'orange'}">${remaining(d.transactionId)<=0?'Lunas':'Berjalan'}</span></td></tr>`).join('');$('recentList').innerHTML=rows?`<div class="tablewrap"><table><thead><tr><th>ID</th><th>Voucher</th><th>Total</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="empty">Belum ada aktivitas.</div>'}
-function go(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['dashboard','transactions','payments','prices','reports'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab))}
+function go(tab){document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['dashboard','transactions','payments','counting','prices','reports'].forEach(t=>$('tab-'+t).classList.toggle('hidden',t!==tab))}
 $('loginForm').onsubmit=async e=>{e.preventDefault();$('loginBtn').disabled=true;$('loginBtn').textContent='Memeriksa akun...';try{await signInWithEmailAndPassword(auth,$('email').value.trim(),$('password').value)}catch(e){toast(e.code==='auth/invalid-credential'?'Email atau password salah.':e.code==='auth/too-many-requests'?'Terlalu banyak percobaan. Coba beberapa saat lagi.':'Login gagal: '+e.message)}finally{$('loginBtn').disabled=false;$('loginBtn').innerHTML='Masuk ke dashboard <span>→</span>'}};$('togglePassword').onclick=()=>{const p=$('password');p.type=p.type==='password'?'text':'password';$('togglePassword').textContent=p.type==='password'?'Lihat':'Tutup'};$('logoutBtn').onclick=()=>signOut(auth);
 $('debtDate').value=today();$('payDate').value=today();$('brand').onchange=renderProductOptions;$('product').onchange=syncPrice;$('qty').oninput=updateTotal;$('payTypeFilter').onchange=()=>{$('payBrandFilter').value='';$('payQty').value=1;renderSelects()};$('payBrandFilter').onchange=()=>{renderPaymentTransactionOptions();$('payQty').value=1;updateBalance()};$('payTransaction').onchange=updateBalance;$('payQty').oninput=updatePayPreview;$('debtSearch').oninput=renderDebts;$('statusFilter').onchange=renderDebts;$('paymentSearch').oninput=renderPayments;
 $('debtForm').onsubmit=async e=>{e.preventDefault();const p=products.find(x=>x.id===$('product').value),qty=Number($('qty').value),unit=priceFor(p||{});if(!p||qty<1||unit<=0)return toast('Pilih voucher dengan harga tersimpan lebih dari Rp0. Periksa Daftar Harga.');const transactionId=nextId();await addDoc(col('debts'),{transactionId,date:$('debtDate').value,voucherType:$('voucherType').value,brand:p.brand,productId:p.id,code:p.code,qty,unitPrice:unit,total:qty*unit,note:$('debtNote').value.trim(),createdAt:serverTimestamp()});$('qty').value=1;$('debtNote').value='';await loadAll();toast('Transaksi '+transactionId+' berhasil disimpan.')};
