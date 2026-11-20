@@ -224,7 +224,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card"><div class="head"><h2>Pemulihan data</h2></div><p class="hint">Impor backup JSON yang sebelumnya dibuat dari website ini. Data akan ditambahkan, bukan menimpa data lama.</p><input id="importFile" type="file" accept="application/json"><button id="importJson" class="secondary" style="margin-top:10px">Impor backup</button></div></div>
   <div class="notice" style="margin-top:14px">Data utama tetap tersimpan di Firebase. File backup hanya salinan tambahan. Simpan file backup di tempat yang aman.</div>
  </section>
- <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V27</p>
+ <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · XFranky · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V28</p>
 </main></div>
 <div id="publicPreview" class="hidden">
  <header class="top"><div class="topin"><div class="brand">UTANG VOUCHER<span>PREVIEW DAFTAR UTANG</span></div><span class="pill">HANYA LIHAT</span></div></header>
@@ -240,7 +240,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
    <div class="head"><h2>Semua transaksi voucher</h2><span class="pill">HANYA LIHAT</span></div>
    <div id="publicDetails" class="tablewrap"></div>
   </section>
-  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V27</p>
+  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V28</p>
  </main>
 </div>
 <div id="toast" class="toast"></div>
@@ -484,7 +484,7 @@ document.addEventListener('click',async e=>{
  if(t.dataset.delpay&&confirm('Hapus pembayaran ini?')){await deleteDoc(doc(db,'users',user.uid,'payments',t.dataset.delpay));await loadAll();toast('Pembayaran dihapus.');return}
  if(t.dataset.delprod&&confirm('Hapus harga voucher?')){await deleteDoc(doc(db,'users',user.uid,'products',t.dataset.delprod));await loadAll();toast('Harga dihapus.');return}
 });
-$('exportJson').onclick=()=>download('utang-voucher-backup.json',JSON.stringify({version:2,exportedAt:new Date().toISOString(),products,debts,payments},null,2),'application/json');
+$('exportJson').onclick=()=>{const now=new Date(),date=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');download(`utang-voucher-backup-${date}.json`,JSON.stringify({version:2,exportedAt:now.toISOString(),products,debts,payments},null,2),'application/json')};
 $('exportCsv').onclick=()=>{const lines=[['ID Transaksi','Tanggal','Merek','Nominal','Jumlah','Harga Satuan','Total','Total Dibayar','Sisa','Status'],...debts.map(d=>[d.transactionId,d.date,d.brand,d.code,d.qty,d.unitPrice,d.total,paidTotal(d.transactionId),remaining(d.transactionId),remaining(d.transactionId)<=0?'Lunas':'Berjalan'])];download('laporan-voucher.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
 function download(name,data,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([data],{type}));a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 $('importJson').onclick=async()=>{const f=$('importFile').files[0];if(!f)return toast('Pilih file backup JSON.');try{const x=JSON.parse(await f.text());if(!Array.isArray(x.products)||!Array.isArray(x.debts)||!Array.isArray(x.payments))throw Error('Format backup tidak valid.');if(!confirm('Tambahkan seluruh data dari backup ke database?'))return;for(const p of x.products){const{ id,...data}=p;await addDoc(col('products'),data)}for(const d of x.debts){const{ id,...data}=d;await addDoc(col('debts'),data)}for(const p of x.payments){const{ id,...data}=p;await addDoc(col('payments'),data)}await loadAll();toast('Backup berhasil diimpor.')}catch(e){toast('Gagal impor: '+e.message)}};
