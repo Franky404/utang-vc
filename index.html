@@ -207,7 +207,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
   <div class="card"><div class="head"><h2>Pemulihan data</h2></div><p class="hint">Impor backup JSON yang sebelumnya dibuat dari website ini. Data akan ditambahkan, bukan menimpa data lama.</p><input id="importFile" type="file" accept="application/json"><button id="importJson" class="secondary" style="margin-top:10px">Impor backup</button></div></div>
   <div class="notice" style="margin-top:14px">Data utama tetap tersimpan di Firebase. File backup hanya salinan tambahan. Simpan file backup di tempat yang aman.</div>
  </section>
- <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V21</p>
+ <p class="hint" style="text-align:center;margin:22px 0">UTANG VOUCHER · Data privat tersimpan di Firebase Authentication & Cloud Firestore · VERSI V23</p>
 </main></div>
 <div id="publicPreview" class="hidden">
  <header class="top"><div class="topin"><div class="brand">UTANG VOUCHER<span>PREVIEW DAFTAR UTANG</span></div><span class="pill">HANYA LIHAT</span></div></header>
@@ -223,7 +223,7 @@ main.shell{box-sizing:border-box;padding-left:clamp(12px,2.5vw,22px);padding-rig
    <div class="head"><h2>Semua transaksi voucher</h2><span class="pill">HANYA LIHAT</span></div>
    <div id="publicDetails" class="tablewrap"></div>
   </section>
-  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V21</p>
+  <p class="hint" style="text-align:center;margin:18px 0">Link ini hanya menampilkan ringkasan utang. Tidak ada akses admin, edit, hapus, atau pembayaran. · VERSI V23</p>
  </main>
 </div>
 <div id="toast" class="toast"></div>
@@ -234,21 +234,43 @@ import{getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https:
 import{getFirestore,collection,addDoc,getDocs,getDoc,doc,setDoc,updateDoc,deleteDoc,deleteField,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 const $=id=>document.getElementById(id),rupiah=n=>new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(n)||0),today=()=>new Date().toLocaleDateString('en-CA');
 function compactRupiah(n){const value=(Number(n)||0)/1000;return new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(value)+' rb'}
-function voucherSummary(items){
+function voucherSummary(transactions,paymentRecords=[]){
  const groups={'Tergosok':new Map(),'Di luar':new Map()};
- for(const tx of items||[]){for(const v of tx.items||[]){
+ const paidGroups={'Tergosok':new Map(),'Di luar':new Map()};
+ const add=(target,type,brand,code,qty,total,date='')=>{
+  const key=[brand,code].join('|'),map=target[type],entry=map.get(key)||{brand,code,qty:0,total:0,dates:[]};
+  entry.qty+=Number(qty)||0;entry.total+=Number(total)||0;if(date&&!entry.dates.includes(date))entry.dates.push(date);map.set(key,entry);
+ };
+ for(const tx of transactions||[]){for(const v of tx.items||[]){
   const type=(v.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok';
-  const brand=String(v.brand||'-').trim()||'-',code=String(v.code||'-').trim()||'-',key=[brand,code].join('|'),map=groups[type];
-  const entry=map.get(key)||{brand,code,qty:0,total:0};
+  const brand=String(v.brand||'-').trim()||'-',code=String(v.code||'-').trim()||'-';
   const qty=Number(v.qty)||0,amount=Number(v.total)||qty*(Number(v.unitPrice)||0);
-  entry.qty+=qty;entry.total+=amount;map.set(key,entry);
+  add(groups,type,brand,code,qty,amount);
  }}
+ for(const pay of paymentRecords||[]){
+  const related=(transactions||[]).flatMap(tx=>(tx.items||[]).filter(v=>v.transactionId===pay.transactionId&&v.brand===pay.brand&&v.code===pay.code));
+  const type=(related[0]?.voucherType||pay.voucherType||'Tergosok').toLowerCase().includes('luar')?'Di luar':'Tergosok';
+  const brand=String(pay.brand||related[0]?.brand||'-'),code=String(pay.code||related[0]?.code||'-');
+  const qty=Number(pay.qty)||0,amount=Number(pay.amount)||qty*(Number(pay.unitPrice)||0);
+  if(qty>0||amount>0)add(paidGroups,type,brand,code,qty,amount,pay.date||'');
+ }
  const lines=[];
  for(const type of ['Tergosok','Di luar']){
-  lines.push(type==='Tergosok'?'VC YANG TERGOSOK:':'VC YANG DI LUAR:','');
+  lines.push(type==='Tergosok'?'*VC YANG TERGOSOK:*':'*VC YANG DI LUAR:*','');
   const byBrand=new Map();
   for(const v of groups[type].values()){if(!byBrand.has(v.brand))byBrand.set(v.brand,[]);byBrand.get(v.brand).push(v)}
   for(const [brand,values] of byBrand){lines.push('-'+brand);for(const v of values)lines.push(`${v.code} = ${v.qty} , ${compactRupiah(v.total)}`);lines.push('')}
+ }
+ const paidItems=[...paidGroups['Tergosok'].values(),...paidGroups['Di luar'].values()].filter(v=>v.qty>0||v.total>0);
+ if(paidItems.length){
+  lines.push('*TERBAYAR:*','');
+  for(const type of ['Tergosok','Di luar']){
+   const byBrand=new Map();
+   for(const v of paidGroups[type].values()){if(!byBrand.has(v.brand))byBrand.set(v.brand,[]);byBrand.get(v.brand).push(v)}
+   if(byBrand.size)lines.push(type==='Tergosok'?'-Tergosok':'-Di luar');
+   for(const [brand,values] of byBrand){lines.push(`  ${brand}`);for(const v of values)lines.push(`  ${v.code} = ${v.qty} , ${compactRupiah(v.total)}${v.dates.length?' · '+v.dates.join(', '):''}`)}
+   if(byBrand.size)lines.push('');
+  }
  }
  const sumType=type=>[...groups[type].values()].reduce((sum,v)=>sum+v.total,0);
  const scratched=sumType('Tergosok'),outside=sumType('Di luar');
@@ -358,16 +380,17 @@ document.addEventListener('click',async e=>{
  if(t.dataset.goto){go(t.dataset.goto);return}
  if(t.dataset.copytext){
   if(!debts.length){toast('Belum ada utang untuk dikirim.');return}
-  const message=voucherSummary([{items:debts.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty)||0,unitPrice:Number(d.unitPrice)||0,total:Number(d.total)||0}))}]);
+  const message=voucherSummary([{items:debts.map(d=>({transactionId:d.transactionId,brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty)||0,unitPrice:Number(d.unitPrice)||0,total:Number(d.total)||0}))}],payments);
   const waUrl='https://wa.me/?text='+encodeURIComponent(message);
   window.open(waUrl,'_blank');
   return;
  }
  if(t.dataset.copyall){
   const ids=[...new Set(debts.map(d=>d.transactionId).filter(Boolean))];
-  const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
+  const items=ids.map(id=>{const group=debts.filter(d=>d.transactionId===id);const total=group.reduce((n,d)=>n+Number(d.total||0),0);const paid=paidTotal(id);return{id,date:group[0]?.date||'',items:group.map(d=>({transactionId:d.transactionId,brand:d.brand,code:d.code,voucherType:d.voucherType||'Tergosok',qty:Number(d.qty||0),unitPrice:Number(d.unitPrice||0),total:Number(d.total||0)})),qty:group.reduce((n,d)=>n+Number(d.qty||0),0),total,paid,remaining:total-paid,status:total-paid<=0?'LUNAS':'BELUM LUNAS'}});
   if(!items.length){toast('Belum ada transaksi untuk dibagikan.');return}
-  const payload={kind:'all-debts',createdAt:new Date().toISOString(),items,total:items.reduce((n,x)=>n+x.total,0),paid:items.reduce((n,x)=>n+x.paid,0),remaining:items.reduce((n,x)=>n+x.remaining,0)};
+  const paymentHistory=payments.map(p=>({transactionId:p.transactionId,brand:p.brand,code:p.code,qty:Number(p.qty)||0,unitPrice:Number(p.unitPrice)||0,amount:Number(p.amount)||0,date:p.date||''}));
+  const payload={kind:'all-debts',createdAt:new Date().toISOString(),items,payments:paymentHistory,total:items.reduce((n,x)=>n+x.total,0),paid:items.reduce((n,x)=>n+x.paid,0),remaining:items.reduce((n,x)=>n+x.remaining,0)};
   const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const bytes=crypto.getRandomValues(new Uint8Array(10));
   const token=Array.from(bytes,b=>alphabet[b%alphabet.length]).join('');
@@ -424,8 +447,9 @@ async function showPublicPreview(){
   $('publicRemaining').textContent=rupiah(left);$('publicCount').textContent=data.items.length;
   $('publicDebt').textContent=rupiah(total);$('publicPaid').textContent=rupiah(paid);
   $('publicOpen').textContent=data.items.filter(x=>Number(x.remaining)>0).length;
-  const summary=voucherSummary(data.items);
-  $('publicDetails').innerHTML=data.items.length?`<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:600 14px/1.75 ui-monospace,monospace;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0;color:var(--ink)">${safe(summary)}</pre>`:'<div class="empty">Belum ada utang.</div>';
+  const summary=voucherSummary(data.items,data.payments||[]);
+  const formattedSummary=safe(summary).replace(/^\*(VC YANG TERGOSOK:|VC YANG DI LUAR:|TERBAYAR:)\*$/gm,'<strong>$1</strong>');
+  $('publicDetails').innerHTML=data.items.length?`<pre style="white-space:pre-wrap;overflow-wrap:anywhere;font:600 14px/1.75 ui-monospace,monospace;background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin:0;color:var(--ink)">${formattedSummary}</pre>`:'<div class="empty">Belum ada utang.</div>';
  }catch(e){$('publicDetails').innerHTML=`<div class="preview-error"><b>Preview tidak dapat dibuka</b><span>${safe(e.message)}</span></div>`}
  return true;
 }
